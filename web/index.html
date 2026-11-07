@@ -1,25 +1,21 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="按需查询各平台借贷与活期理财利率。">
+  <meta name="description" content="On-demand borrowing and flexible earn rates.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://rate-monitor-api.smallyu.workers.dev; style-src 'self'; script-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
-  <title>Rate Monitor · 利率看板</title>
+  <title>Rate Monitor</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css"><script src="./app.js" type="module"></script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><span class="mark">↗</span> Rate Monitor</a><a class="repo" href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub ↗</a></header>
   <main>
-    <div class="eyebrow"><span class="dot"></span> ON-DEMAND RATES</div>
-    <section class="intro"><div><h1>让利率，一目了然。</h1><p>查看借款成本与活期收益，在需要时获取最新报价。</p></div><button id="refresh" type="button">刷新利率 <span aria-hidden="true">↻</span></button></section>
-    <section class="statusbar" aria-live="polite"><span id="status">正在连接利率服务…</span><span id="updated">打开页面时查询 · 手动刷新</span></section>
-    <div class="section-label"><h2>Binance</h2><span>01 平台 / 03 产品</span></div>
-    <section id="cards" class="cards" aria-label="当前利率" aria-busy="true"></section>
-    <section class="compare"><div><span class="eyebrow">AT A GLANCE</span><h2>借款与收益对照</h2><p>用相同的年化口径阅读利率，保留每个产品的适用条件。</p></div><div id="bars" class="bars" aria-live="polite">等待利率数据</div></section>
-    <section class="notes"><article><span>01 / 更新方式</span><h3>需要时，再查询</h3><p>打开页面或点击刷新时请求平台。没有定时采样，不保存历史曲线；每项数据标注查询时间。</p></article><article><span>02 / 利率口径</span><h3>基础收益与加息分开</h3><p>Earn 显示基础 APR，额外阶梯加息及适用额度单独列出。APR 不等于承诺收益，也不等于复利 APY。</p></article><article><span>03 / Loan 参考值</span><h3>保留来源与时间</h3><p>Loan 同时查询当前原始利率、BTC 抵押资格，以及最近一小时官方公布的年化参考值。原始字段单位待核实，不擅自换算成年化。</p></article></section>
-    <div id="config" class="config" hidden><strong>等待配置 Binance 只读密钥</strong><p>在 Cloudflare Worker 的 Settings → Variables and Secrets 添加 <code>BINANCE_API_KEY</code> 和 <code>BINANCE_API_SECRET</code>，选择 Secret 类型。配置后刷新本页即可。</p></div>
+    <header><h1>Rate Monitor</h1><nav><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button">Refresh</button></nav></header>
+    <div class="statusbar" aria-live="polite"><span id="status">Connecting to rate service…</span><span id="updated">Fetched on page load or manual refresh</span></div>
+    <div class="table-wrap"><table aria-label="Current rates" aria-busy="true" id="rates"><thead><tr><th scope="col">Platform</th><th scope="col">Product</th><th scope="col">Asset</th><th scope="col">APR</th><th scope="col">Details</th><th scope="col">Status / fetched at</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="config" class="notice" hidden>Binance API credentials are not configured. Add <code>BINANCE_API_KEY</code> and <code>BINANCE_API_SECRET</code> as Secrets in Cloudflare Worker settings, then refresh.</div>
+    <p class="note">Earn APR excludes tier bonuses listed under Details. Loan APR is the latest published reference, with its record time shown; the current raw rate is not converted while its time unit is unverified.</p>
+    <p class="note">Rates are fetched on demand. No scheduled sampling or historical storage. APR is not APY.</p>
   </main>
-  <footer><span>Rate Monitor <span class="muted">/ 借贷与活期利率</span></span><span>数据来自平台 API · 仅展示产品利率</span></footer>
 </body>
 </html>
