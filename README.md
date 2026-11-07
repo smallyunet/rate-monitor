@@ -33,7 +33,7 @@ GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名查询�
 
 ## 数据口径
 
-- Earn：`GET /sapi/v1/simple-earn/flexible/list`，分别查询 USDC、USDT。基础年化来自 `latestAnnualPercentageRate`；`tierAnnualPercentageRate` 作为额外阶梯加息及额度单列，不将优惠套用全部本金。返回多个同币产品时标记待确认。
+- Earn：`GET /sapi/v1/simple-earn/flexible/list`，分别查询 USDC、USDT。基础年化来自 `latestAnnualPercentageRate`；`tierAnnualPercentageRate` 为各额度区间的额外加息。页面按区间显示基础 APR + 加息的总 APR，超出额度部分显示基础 APR；输入金额后按每档覆盖的金额加权计算 Effective APR。金额为空或无效时不显示综合值；区间无法解析或重叠时不推测结果。金额输入仅在浏览器计算，不触发平台请求，刷新利率时保留。返回多个同币产品时标记待确认。
 - Loan 当前 APR：`GET /sapi/v2/loan/flexible/loanable/data`，分别查询 `loanCoin=USDC`、`loanCoin=USDT`，直接读取 `flexibleInterestRate` 年化小数。2026-11-07 已用 Binance 官方 [Flexible Loan 市场页](https://www.binance.com/en/flexible-loan) 的 Annually Interest Rate 列核对单位：API 约 `0.05368` 对应页面约 `5.368%`，USDT 页面约 `5.8474%`（报价会随时间变化）。不乘小时数，也不转换成复利 APY。
 - 旧版 APR 为空的原因：只从最近一小时的历史接口读取年化参考，而历史返回空列表；当前报价虽已返回，却未用于 APR。现已去掉历史依赖及对应查询，直接展示当前 APR。
 - BTC 抵押资格及初始/清算 LTV：`GET /sapi/v2/loan/flexible/collateral/data?collateralCoin=BTC`。这只说明资产资格，不保证特定账户能成功借款。

@@ -1,3 +1,5 @@
+import { earnTiers, effectiveApr } from './earn-apr.js';
+const amounts = new Map();
 const ENDPOINT = 'https://rate-monitor-api.smallyu.workers.dev/api/rates';
 const descriptors = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
@@ -33,6 +35,46 @@ function logoLabel(name) {
   label.append(icon, document.createTextNode(name));
   return label;
 }
+const number = value => value.toLocaleString('en-US', { maximumFractionDigits: 8 });
+function tierLabel(tier, asset) {
+  if (tier.to === Infinity) return tier.from === 0 ? 'All amounts' : `Above ${number(tier.from)} ${asset}`;
+  return tier.from === 0 ? `First ${number(tier.to)} ${asset}` : `${number(tier.from)}–${number(tier.to)} ${asset}`;
+}
+function renderEarn(p, apr, effective) {
+  let tiers;
+  if (p.status === 'ok') {
+    try { tiers = earnTiers(p.apr, p.tiers, p.asset); }
+    catch { apr.textContent = 'Tiers unavailable'; apr.classList.add('error'); }
+  }
+  if (tiers) {
+    apr.replaceChildren();
+    for (const tier of tiers) {
+      const line = el('div', 'apr-tier');
+      line.append(el('span', 'secondary', tierLabel(tier, p.asset)), el('strong', '', percent(tier.apr)));
+      apr.append(line);
+    }
+  }
+  const result = el('output', 'apr effective-result', '—');
+  result.setAttribute('aria-label', `${p.asset} effective APR`);
+  result.setAttribute('aria-live', 'polite');
+  const input = el('input', 'amount');
+  input.id = `${p.id}-amount`;
+  input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal';
+  input.placeholder = `Amount (${p.asset})`;
+  input.setAttribute('aria-label', `${p.asset} deposit amount`);
+  result.setAttribute('for', input.id);
+  input.value = amounts.get(p.id) || '';
+  const update = () => {
+    amounts.set(p.id, input.value);
+    const value = input.value === '' ? NaN : Number(input.value);
+    const invalid = input.validity.badInput || (input.value !== '' && (!Number.isFinite(value) || value <= 0));
+    input.setAttribute('aria-invalid', String(invalid));
+    result.textContent = invalid ? 'Invalid amount' : tiers ? percent(effectiveApr(tiers, value)) : '—';
+  };
+  input.addEventListener('input', update);
+  update();
+  effective.replaceChildren(result, input);
+}
 function render(products) {
   const rows = document.querySelector('#rows');
   rows.replaceChildren();
@@ -50,15 +92,9 @@ function render(products) {
     }
     pair.append(logoLabel(p.asset));
     assets.append(pair);
-    const apr = el('td', 'apr', p.status === 'ok' ? percent(p.apr) : '—');
-    const bonus = el('td', 'bonus');
-    if (p.status === 'ok' && p.kind === 'earn' && p.tiers?.length) {
-      for (const tier of p.tiers) {
-        const line = el('div', '', `+${percent(tier.bonusApr)}`);
-        line.append(el('span', 'secondary tier', tier.range));
-        bonus.append(line);
-      }
-    } else bonus.textContent = '—';
+    const apr = el('td', p.kind === 'loan' ? 'apr' : 'tier-aprs', p.status === 'ok' && p.kind === 'loan' ? percent(p.apr) : '—');
+    const effective = el('td', 'effective', '—');
+    if (p.kind === 'earn') renderEarn(p, apr, effective);
     const updated = el('td', 'updated');
     if (p.status === 'ok') {
       updated.textContent = time(p.fetchedAt).replace(/^\d{4}-\d{2}-\d{2} /, '');
@@ -73,9 +109,9 @@ function render(products) {
       if (codes.length) updated.append(el('div', 'secondary', codes.join(' / ')));
       updated.title = errors[p.error] || 'Fetching rates';
     }
-    row.append(platform, product, assets, apr, bonus, updated);
+    row.append(platform, product, assets, apr, effective, updated);
     row.setAttribute('role', 'row');
-    const labels = ['Platform', 'Product', 'Assets', 'APR', 'Bonus APR', 'Updated'];
+    const labels = ['Platform', 'Product', 'Assets', 'Tier APR', 'Effective APR', 'Updated'];
     Array.from(row.children).forEach((cell, index) => {
       cell.dataset.label = labels[index];
       cell.setAttribute('role', 'cell');
