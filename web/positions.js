@@ -27,6 +27,12 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
     wrapper.append(typeof value === 'string' ? document.createTextNode(value) : value);
     td.append(wrapper); row.append(td);
   }
+  function amountLine(label, value, asset, secondary = false) {
+    const line = el('div', secondary ? 'secondary' : '');
+    if (label) line.append(document.createTextNode(label));
+    line.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
+    return line;
+  }
   function render(sections) {
     const table = el('table'); table.setAttribute('aria-label', 'My positions'); table.setAttribute('role', 'table');
     const head = el('thead'); const heading = el('tr');
@@ -51,14 +57,14 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
         } else assets.textContent = '—';
         cell(row, labels[2], assets);
         const details = el('div', 'position-values');
-        if (r.estimate !== undefined) details.append(el('div', '', `≈ ${r.estimate} USDT`), el('small', 'secondary', 'Savings value · all subscriptions'));
+        if (r.estimate !== undefined) details.append(amountLine('≈ ', r.estimate, 'USDT'), el('small', 'secondary', 'Savings value · all subscriptions'));
         else if (r.collateral) {
-          details.append(el('div', '', `Collateral: ${quantity(r.collateralAmount, r.collateral)}`));
-          details.append(el('div', '', `${r.debt == null ? 'Loan' : 'Debt incl. interest'}: ${quantity(r.debt ?? r.loan, r.asset)}`));
-          if (r.interest != null) details.append(el('div', 'secondary', `Interest: ${quantity(r.interest, r.asset)}`));
+          details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
+          details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
+          if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
-          details.append(el('div', '', quantity(r.amount, r.asset)));
-          if (r.collateralAmount != null) details.append(el('div', 'secondary', `Used as collateral: ${quantity(r.collateralAmount, r.asset)}`));
+          details.append(amountLine('', r.amount, r.asset));
+          if (r.collateralAmount != null) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
         }
         cell(row, labels[3], details);
         const updated = el('span', '', '—');

@@ -36,7 +36,7 @@ tbody tr:hover { background: #18212e; }
 #rates td.effective { width: 128px; min-width: 116px; }
 #rates td.updated { min-width: 64px; font-size: 11px; }
 #rates tr[data-platform="Bitget"] + tr[data-platform="OKX"], #rates tr[data-platform="Binance"] + tr[data-platform="Bitget"] { border-top: 2px solid #364257; }
-.apr { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.apr { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 400; }
 .secondary, .note { color: var(--muted); font-size: 10px; font-weight: 400; }
 .secondary { margin-top: 3px; }
 .error { color: #f1ba75; }
@@ -49,7 +49,7 @@ tbody tr:hover { background: #18212e; }
 .arrow { color: #687a94; }
 .apr-tier { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 3px; }
 .apr-tier:last-child { margin-bottom: 0; }
-.apr-tier strong { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 650; }
+.apr-tier strong { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 400; }
 .apr-tier .secondary { margin: 0; }
 .effective-result { display: block; min-height: 18px; }
 .amount, .offer-select { display: block; width: 100%; max-width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid #344157; border-radius: 4px; background: #0e141e; color: inherit; font: inherit; font-size: 11px; }
@@ -58,6 +58,7 @@ tbody tr:hover { background: #18212e; }
 .amount-source, .fee-note, .rate-note { display: block; margin-top: 3px; }
 .rate-note { white-space: normal; max-width: 165px; font-size: 9px; }
 .offer-select { width: 120px; }
+.position-amount { color: var(--apr); font-size: 12px; font-weight: 400; }
 .position-values { min-width: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 #positions-content .secondary { display: block; }
 #positions-content table { table-layout: fixed; font-size: 11px; }
