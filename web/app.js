@@ -116,11 +116,8 @@ function render(products) {
     pair.append(logoLabel(p.asset));
     assets.append(pair);
     const apr = el('td', p.kind === 'loan' ? 'apr' : 'tier-aprs', p.status === 'ok' && p.kind === 'loan' ? percent(p.apr) : '—');
-    if (p.rateNote && p.kind === 'loan' && p.status === 'ok') apr.append(el('small', 'secondary rate-note', p.rateNote));
     if (p.kind === 'earn') {
       renderEarn(p, apr);
-      if (p.status === 'ok' && p.rateNote) apr.append(el('small', 'secondary rate-note', p.rateNote));
-      if (p.status === 'ok' && p.serviceFeeRate) apr.append(el('small', 'secondary rate-note', `${percent(p.serviceFeeRate)} service fee`));
     }
     const updated = el('td', 'updated');
     if (p.status === 'ok') {

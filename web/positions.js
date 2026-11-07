@@ -56,7 +56,7 @@ export function mountPositions({ el, logoLabel }) {
         } else assets.textContent = '—';
         cell(row, labels[2], assets);
         const details = el('div', 'position-values');
-        if (r.estimate !== undefined) details.append(amountLine('≈ ', r.estimate, 'USDT'), el('small', 'secondary', 'Savings value · all subscriptions'));
+        if (r.estimate !== undefined) details.append(amountLine('≈ ', r.estimate, 'USDT'));
         else if (r.collateral) {
           details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
           details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
@@ -74,7 +74,7 @@ export function mountPositions({ el, logoLabel }) {
     }
     const wrap = el('div', 'table-wrap'); wrap.append(table);
     content.replaceChildren();
-    if (body.childElementCount) content.append(wrap, el('p', 'note', 'Collateral and Earn may overlap. Balances are not added together.'));
+    if (body.childElementCount) content.append(wrap);
     else if (!failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', 'No positions'));
     if (failures.childElementCount) content.append(failures);
     if (coverage.childElementCount) content.append(coverage);

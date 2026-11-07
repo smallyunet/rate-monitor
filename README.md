@@ -134,7 +134,7 @@ OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需�
 
 - Loan：OKX 官网使用的匿名 `GET /priapi/v1/multi-collateral/loans/outer/loan-data`，精确匹配 `loanableCoinList.symbol`，`lastHourRate` 已是年化小数，不再乘 8760；从 `collateralList` 检查 BTC。此官网接口未列入稳定的 V5 文档，结构变化会显示错误，不能用其他产品利率兜底。LTV 未提供时保持未知。
 - Earn：官方 V5 `GET /api/v5/finance/savings/lending-rate-history?ccy=USDC|USDT&limit=1`，使用最近结算小时的 `lendingRate`（年化小数），不用 `rate`（借款利率）、24 小时平均或下一小时预估。保留结算时间，超过两小时显示 stale，不冒充实时成功。
-- Tier APR 显示未扣费的市场出借 APR，并注明最近小时、不含奖励；旁边提示平台收取 15% 服务费，不进行扣费收益测算。仅限新用户、地区、期限或额度的奖励没有混入市场利率；因此这不是官网最高活动 APR。
+- Tier APR 显示未扣费的市场出借 APR，页面仅保留数值和分档，不显示最近小时、奖励或服务费等辅助说明，不进行扣费收益测算。仅限新用户、地区、期限或额度的奖励没有混入市场利率；因此这不是官网最高活动 APR。
 - 各产品失败独立隔离；只公开规范化的利率、时间与安全错误码，不传递上游正文。
 
 来源：[OKX V5 Simple Earn 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-public-borrow-history-public)、[Simple Earn Flexible 收益与服务费](https://www.okx.com/en-us/help/simple-earn-faq)、[OKX Loan](https://www.okx.com/loan)。

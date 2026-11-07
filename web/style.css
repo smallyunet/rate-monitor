@@ -52,7 +52,6 @@ tbody tr:hover { background: var(--hover); }
 .apr-tier strong { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 400; }
 .apr-tier .secondary { margin: 0; }
 .offer-select { display: block; width: 100%; max-width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid #424345; border-radius: 4px; background: #141516; color: inherit; font: inherit; font-size: 11px; }
-.rate-note { display: block; margin-top: 3px; white-space: normal; max-width: 165px; font-size: 9px; }
 .offer-select { width: 120px; }
 .position-amount { color: var(--apr); font-size: 12px; font-weight: 400; }
 .position-values { min-width: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
