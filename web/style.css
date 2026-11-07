@@ -16,7 +16,7 @@ button { padding: 5px 11px; border: 1px solid #364257; border-radius: 5px; backg
 button:hover { border-color: #6a809e; background: #202c3e; }
 #refresh { color: var(--accent); border-color: #31514e; background: #17312e; }
 button:disabled { opacity: .6; cursor: wait; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .dashboard { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(360px, 1fr); gap: 16px; align-items: start; }
 .panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .panel-heading, .positions-header { min-height: 50px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -33,7 +33,6 @@ tbody tr:hover { background: #18212e; }
 #rates td.product { width: 126px; min-width: 100px; font-size: 11px; }
 #rates td.assets { min-width: 124px; }
 #rates td.tier-aprs { min-width: 170px; }
-#rates td.effective { width: 128px; min-width: 116px; }
 #rates td.updated { min-width: 64px; font-size: 11px; }
 #rates tr[data-platform="Bitget"] + tr[data-platform="OKX"], #rates tr[data-platform="Binance"] + tr[data-platform="Bitget"] { border-top: 2px solid #364257; }
 .apr { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 400; }
@@ -51,11 +50,8 @@ tbody tr:hover { background: #18212e; }
 .apr-tier:last-child { margin-bottom: 0; }
 .apr-tier strong { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 400; }
 .apr-tier .secondary { margin: 0; }
-.effective-result { display: block; min-height: 18px; }
-.amount, .offer-select { display: block; width: 100%; max-width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid #344157; border-radius: 4px; background: #0e141e; color: inherit; font: inherit; font-size: 11px; }
-.amount { width: 110px; }
-.amount[aria-invalid="true"] { border-color: #f08080; }
-.amount-source, .fee-note, .rate-note { display: block; margin-top: 3px; }
+.offer-select { display: block; width: 100%; max-width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid #344157; border-radius: 4px; background: #0e141e; color: inherit; font: inherit; font-size: 11px; }
+.rate-note { display: block; margin-top: 3px; }
 .rate-note { white-space: normal; max-width: 165px; font-size: 9px; }
 .offer-select { width: 120px; }
 .position-amount { color: var(--apr); font-size: 12px; font-weight: 400; }
@@ -91,13 +87,13 @@ tbody tr:hover { background: #18212e; }
   thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; padding: 13px 12px; border-top: 1px solid var(--line); }
   tbody tr:first-child { border-top: 0; }
-  tbody td, #rates td.product, #rates td.assets, #rates td.tier-aprs, #rates td.effective, #rates td.updated, #positions-content td {
+  tbody td, #rates td.product, #rates td.assets, #rates td.tier-aprs, #rates td.updated, #positions-content td {
     display: block; width: auto; min-width: 0; padding: 0; border: 0;
   }
   #rates td:first-child { padding-left: 0; }
   td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; margin-bottom: 4px; }
   .cell-value { overflow-wrap: anywhere; }
-  .amount, .offer-select { width: 100%; min-height: 40px; font-size: 16px; }
+  .offer-select { width: 100%; min-height: 40px; font-size: 16px; }
   .apr-tier { flex-wrap: wrap; gap: 2px 8px; }
   .asset-pair { gap: 4px; }
   #positions-content .table-wrap { padding: 0; }

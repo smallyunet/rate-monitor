@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectOKX, normalizeOKXLoan, normalizeOKXEarn } from '../worker/okx.js';
-import { productEarnTiers, effectiveApr } from '../web/earn-apr.js';
+import { productEarnTiers } from '../web/earn-apr.js';
 const now = Date.now();
 const loan = () => ({ collateralList: [{ symbol: 'BTC' }], loanableCoinList: [
   { symbol: 'USDC', lastHourRate: '.045' }, { symbol: 'USDT', lastHourRate: '.04' },
@@ -20,7 +20,7 @@ test('OKX Earn keeps settled lending APR distinct from borrowing and estimates, 
   const result = normalizeOKXEarn(earn(), 'USDC', now);
   assert.equal(result.apr, .035); assert.equal(result.serviceFeeRate, .15);
   assert.equal(result.rateAt, new Date(now - 3600000).toISOString());
-  assert.ok(Math.abs(effectiveApr(productEarnTiers(result), 1000) * (1 - result.serviceFeeRate) - .02975) < 1e-12);
+  assert.deepEqual(productEarnTiers(result), [{from:0,to:Infinity,apr:.035}]);
   assert.throws(() => normalizeOKXEarn(earn(), 'USDT', now), /unavailable/);
   for (const value of ['', null, '-1', 'abc']) { const data = earn(); data[0].lendingRate = value; assert.throws(() => normalizeOKXEarn(data, 'USDC', now), /invalid_data/); }
   const missing = earn(); delete missing[0].lendingRate; assert.throws(() => normalizeOKXEarn(missing, 'USDC', now), /invalid_data/);

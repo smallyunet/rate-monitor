@@ -33,7 +33,7 @@ Cloudflare Worker 同源托管网页与 API → Binance、Bitget、OKX 市场接
 
 ## 数据口径
 
-- Earn：`GET /sapi/v1/simple-earn/flexible/list`，分别查询 USDC、USDT。基础年化来自 `latestAnnualPercentageRate`；`tierAnnualPercentageRate` 为各额度区间的额外加息。页面按区间显示基础 APR + 加息的总 APR，超出额度部分显示基础 APR；默认金额自动取最高加息档位上限的两倍，并按每档覆盖的金额加权计算 Effective APR；没有有限上限时留空。用户手动修改或清空金额后，刷新利率保留该输入；未手动修改时，刷新后按最新档位重新计算默认金额。金额为空或无效时不显示综合值；区间无法解析或重叠时不推测结果。金额输入仅在浏览器计算，不触发平台请求，刷新利率时保留。返回多个同币产品时标记待确认。
+- Earn：`GET /sapi/v1/simple-earn/flexible/list`，分别查询 USDC、USDT。基础年化来自 `latestAnnualPercentageRate`；`tierAnnualPercentageRate` 为各额度区间的额外加息。页面按区间显示基础 APR + 加息的总 APR，超出额度部分显示基础 APR。区间无法解析或重叠时不推测结果。返回多个同币产品时标记待确认。
 - Loan 当前 APR：`GET /sapi/v2/loan/flexible/loanable/data`，分别查询 `loanCoin=USDC`、`loanCoin=USDT`，直接读取 `flexibleInterestRate` 年化小数。2026-11-07 已用 Binance 官方 [Flexible Loan 市场页](https://www.binance.com/en/flexible-loan) 的 Annually Interest Rate 列核对单位：API 约 `0.05368` 对应页面约 `5.368%`，USDT 页面约 `5.8474%`（报价会随时间变化）。不乘小时数，也不转换成复利 APY。
 - 旧版 APR 为空的原因：只从最近一小时的历史接口读取年化参考，而历史返回空列表；当前报价虽已返回，却未用于 APR。现已去掉历史依赖及对应查询，直接展示当前 APR。
 - BTC 抵押资格及初始/清算 LTV：`GET /sapi/v2/loan/flexible/collateral/data?collateralCoin=BTC`。这只说明资产资格，不保证特定账户能成功借款。
@@ -112,29 +112,29 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 
 应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在左，My Positions 在右，窄屏上下排列。GitHub Pages 已关闭，原地址不再提供跳转，请直接使用 Worker 地址。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
 
-未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM、实际余额默认值和自定义金额，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
+未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
 
-Rates 的 Effective APR 金额优先级：手动输入 > 已认证的 Binance Flexible Earn 完整成功快照中的实际余额 > 档位上限两倍。零余额保持 0，零金额不计算 APR；失败/缺失/partial 不能当作实际余额。借贷抵押与 Earn 不合计，Bitget Savings 估值不冒充 Binance Earn 数量。两个区域独立手动刷新，无定时采样。
+Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算，也不使用实际仓位计算收益。借贷抵押与 Earn 不合计。两个区域独立手动刷新，无定时采样。
 
 ## Bitget Flexible Earn 利率
 
 - `GET /api/v3/earn/savings/product?coin=USDC|USDT&filter=available` 需要 Bitget 只读密钥签名，由 Worker 使用既有 Secrets 签名，经 ssh c 转发。此固定市场查询不依赖用户登录；所有仓位接口的 JWT 限制保持不变，密钥及签名不返回前端。
 - 仅选择 `periodType=flexible`、`productLevel=normal` 的普通用户产品，不用新用户、VIP、定期活动利率替代。存在多个普通活期方案时保留各自独立档位，并提供方案选择；默认按平台接口顺序，不自动挑最高收益，也不把不同方案的档位混在一起。
-- `apyList.currentApy` 按百分数转成小数（6.00 → 0.06），每个档位为完整年化，不是叠加奖励。按 `minStepVal` / `maxStepVal` 展示分档，并按金额加权计算 Effective APR。Bitget 官方 Savings 说明将收益口径称为 APR，按日计算利息，不将字段名直接当成复利 APY。
-- 有限的最后一档上限保留为覆盖边界；金额超出已知范围时不猜测收益。默认金额取最后一档之前最高分档边界的两倍，且必须处于已知覆盖范围内。仅一个有限档位时不推测默认金额。
-- Bitget Savings 仓位明细只有近三个月创建范围，不能作为完整余额默认值；继续使用档位默认金额或手动输入。
+- `apyList.currentApy` 按百分数转成小数（6.00 → 0.06），每个档位为完整年化，不是叠加奖励。按 `minStepVal` / `maxStepVal` 展示分档。Bitget 官方 Savings 说明将收益口径称为 APR，按日计算利息，不将字段名直接当成复利 APY。
+- 有限的最后一档上限保留为覆盖边界；不推测覆盖范围之外的利率。
+- Bitget Savings 仓位明细只有近三个月创建范围，不能作为完整余额。
 
 官方文档：[Savings API](https://www.bitget.com/docs/catalog/earn/savings#get-savings-product-list)、[Flexible Savings 收益说明](https://www.bitget.com/support/articles/12560603826506)。
 
 ## OKX 市场利率与深色看板
 
-桌面宽屏采用深色双栏：左侧 Rates，右侧 My Positions；1190px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。登录、实际余额默认值和独立刷新不变。
+桌面宽屏采用深色双栏：左侧 Rates，右侧 My Positions；1190px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
 
 OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需密钥：
 
 - Loan：OKX 官网使用的匿名 `GET /priapi/v1/multi-collateral/loans/outer/loan-data`，精确匹配 `loanableCoinList.symbol`，`lastHourRate` 已是年化小数，不再乘 8760；从 `collateralList` 检查 BTC。此官网接口未列入稳定的 V5 文档，结构变化会显示错误，不能用其他产品利率兜底。LTV 未提供时保持未知。
 - Earn：官方 V5 `GET /api/v5/finance/savings/lending-rate-history?ccy=USDC|USDT&limit=1`，使用最近结算小时的 `lendingRate`（年化小数），不用 `rate`（借款利率）、24 小时平均或下一小时预估。保留结算时间，超过两小时显示 stale，不冒充实时成功。
-- Tier APR 显示未扣费的市场出借 APR，并注明最近小时、不含奖励；Effective APR 按金额计算后扣除 15% 服务费，旁边明确标注。仅限新用户、地区、期限或额度的奖励没有混入市场利率；因此这不是官网最高活动 APR。无奖励档位时不猜测默认金额。
+- Tier APR 显示未扣费的市场出借 APR，并注明最近小时、不含奖励；旁边提示平台收取 15% 服务费，不进行扣费收益测算。仅限新用户、地区、期限或额度的奖励没有混入市场利率；因此这不是官网最高活动 APR。
 - 各产品失败独立隔离；只公开规范化的利率、时间与安全错误码，不传递上游正文。
 
 来源：[OKX V5 Simple Earn 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-public-borrow-history-public)、[Simple Earn Flexible 收益与服务费](https://www.okx.com/en-us/help/simple-earn-faq)、[OKX Loan](https://www.okx.com/loan)。

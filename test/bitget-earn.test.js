@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeBitgetEarn, collectBitgetEarn } from '../worker/bitget-earn.js';
-import { productEarnTiers, effectiveApr, defaultEarnAmount } from '../web/earn-apr.js';
+import { productEarnTiers } from '../web/earn-apr.js';
 import { relay } from '../server/relay.js';
 const product = (coin='USDT') => ({ coin, periodType:'flexible',productLevel:'normal',status:'in_progress',productId:'example',apyList:[
  {minStepVal:'0',maxStepVal:'1000',currentApy:'6.00'},
@@ -10,7 +10,7 @@ const product = (coin='USDT') => ({ coin, periodType:'flexible',productLevel:'no
 test('Bitget Earn selects normal flexible products and uses total tier percentages',()=>{
  const raw=product();const value=normalizeBitgetEarn([raw,{...product(),periodType:'fixed'},{...product(),productLevel:'VIP'},{...product(),productLevel:'beginner'}],'USDT');
  assert.equal(value.apr,.06);assert.equal(value.rateTiers[1].apr,.02);
- const tiers=productEarnTiers(value);assert.equal(defaultEarnAmount(tiers),2000);assert.equal(effectiveApr(tiers,2000),.04);assert.equal(effectiveApr(tiers,1000),.06);assert.equal(effectiveApr(tiers,1000001),null);
+ const tiers=productEarnTiers(value);assert.deepEqual(tiers,[{from:0,to:1000,apr:.06},{from:1000,to:1000000,apr:.02}]);
  assert.throws(()=>normalizeBitgetEarn([{...raw,productLevel:'VIP'}],'USDT'),/unavailable/);
  assert.equal(normalizeBitgetEarn([raw,raw],'USDT').offers.length,1);
  const other={...product(),productId:'other',apyList:[{minStepVal:'0',maxStepVal:'300000',currentApy:'7'},{minStepVal:'300000',maxStepVal:'10000000',currentApy:'4'}]};

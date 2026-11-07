@@ -1,21 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { earnTiers, effectiveApr, defaultEarnAmount } from '../web/earn-apr.js';
+import { earnTiers } from '../web/earn-apr.js';
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-12, `${actual} != ${expected}`);
 test('tier bonus is added only to the eligible portion, including the exact cap', () => {
   const tiers = earnTiers(.021717, [{ range: '0-10000USDC', bonusApr: .07 }], 'USDC');
   near(tiers[0].apr, .091717);
   near(tiers[1].apr, .021717);
-  near(effectiveApr(tiers, 5000), .091717);
-  near(effectiveApr(tiers, 10000), .091717);
-  near(effectiveApr(tiers, 20000), .056717);
-  near(effectiveApr(tiers, 10001), (.091717 * 10000 + .021717) / 10001);
 });
 test('multiple unordered tiers and gaps use the correct marginal rates', () => {
   const tiers = earnTiers(.02, [{ range: '200-400USDT', bonusApr: .03 }, { range: '0-100USDT', bonusApr: .08 }], 'USDT');
-  near(effectiveApr(tiers, 500), (100 * .10 + 100 * .02 + 200 * .05 + 100 * .02) / 500);
-  near(effectiveApr(earnTiers(.02, [], 'USDC'), .5), .02);
-  near(effectiveApr(earnTiers(0, [], 'USDC'), 100), 0);
+  assert.deepEqual(tiers.map(t => [t.from, t.to]), [[0,100],[100,200],[200,400],[400,Infinity]]);
+  [.10,.02,.05,.02].forEach((rate, i) => near(tiers[i].apr, rate));
 });
 test('missing or ambiguous bounds are not presented as a complete APR', () => {
   for (const ranges of [undefined, [{ range: 'unknown', bonusApr: .07 }], [{ range: '0-100USDT', bonusApr: .07 }],
@@ -23,14 +18,4 @@ test('missing or ambiguous bounds are not presented as a complete APR', () => {
     [{ range: '0-100USDC', bonusApr: .07 }, { range: '50-200USDC', bonusApr: .05 }]]) {
     assert.throws(() => earnTiers(.02, ranges, 'USDC'), /invalid_tiers/);
   }
-});
-test('empty, zero, negative and non-finite deposits have no effective APR', () => {
-  const tiers = earnTiers(.02, [], 'USDC');
-  for (const amount of [null, '', '100', 0, -1, NaN, Infinity]) assert.equal(effectiveApr(tiers, amount), null);
-});
-test('default deposit is twice the highest bonus bound and absent when no finite bound exists', () => {
-  assert.equal(defaultEarnAmount(earnTiers(.02, [{ range: '0-10000USDC', bonusApr: .07 }], 'USDC')), 20000);
-  assert.equal(defaultEarnAmount(earnTiers(.03, [{ range: '0-1000USDT', bonusApr: .08 }], 'USDT')), 2000);
-  assert.equal(defaultEarnAmount(earnTiers(.02, [{ range: '0-100USDC', bonusApr: .07 }, { range: '100-500USDC', bonusApr: .03 }], 'USDC')), 1000);
-  assert.equal(defaultEarnAmount(earnTiers(.02, [], 'USDC')), null);
 });

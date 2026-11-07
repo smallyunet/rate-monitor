@@ -1,10 +1,7 @@
-import { accountEarnAmounts, selectEarnAmount } from './account-amounts.js';
 import { mountPositions } from './positions.js';
-import { productEarnTiers, effectiveApr, defaultEarnAmount } from './earn-apr.js';
+import { productEarnTiers } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
-const amounts = new Map();
 const selectedOffers = new Map();
-let accountAmounts = new Map();
 let latestProducts = [];
 const ENDPOINT = '/api/rates';
 const descriptors = [
@@ -69,7 +66,7 @@ function tierLabel(tier, asset) {
   if (tier.to === Infinity) return tier.from === 0 ? 'All amounts' : `Above ${number(tier.from)} ${asset}`;
   return tier.from === 0 ? `First ${number(tier.to)} ${asset}` : `${number(tier.from)}–${number(tier.to)} ${asset}`;
 }
-function renderEarn(p, apr, effective) {
+function renderEarn(p, apr) {
   let tiers;
   if (p.status === 'ok') {
     try { tiers = productEarnTiers(p); }
@@ -83,34 +80,6 @@ function renderEarn(p, apr, effective) {
       apr.append(line);
     }
   }
-  const result = el('output', 'apr effective-result', '—');
-  result.setAttribute('aria-label', `${p.asset} effective APR`);
-  result.setAttribute('aria-live', 'polite');
-  const input = el('input', 'amount');
-  input.id = `${p.id}-amount`;
-  input.type = 'number'; input.min = '0'; input.step = 'any'; input.inputMode = 'decimal';
-  input.placeholder = `Amount (${p.asset})`;
-  input.setAttribute('aria-label', `${p.asset} deposit amount`);
-  result.setAttribute('for', input.id);
-  const defaultAmount = tiers ? defaultEarnAmount(tiers) : null;
-  const selected = selectEarnAmount(p.id, amounts, accountAmounts, defaultAmount);
-  input.value = selected.value;
-  const source = el('small', 'secondary amount-source', selected.value === '' && selected.source === 'Tier default' ? 'Enter amount' : selected.source);
-  const update = () => {
-    const value = input.value === '' ? NaN : Number(input.value);
-    const invalid = input.validity.badInput || (input.value !== '' && (!Number.isFinite(value) || value < 0));
-    input.setAttribute('aria-invalid', String(invalid));
-    const weighted = tiers ? effectiveApr(tiers, value) : null;
-    result.textContent = invalid ? 'Invalid amount' : weighted === null ? '—' : percent(weighted * (1 - (p.serviceFeeRate || 0)));
-  };
-  input.addEventListener('input', () => {
-    amounts.set(p.id, input.value);
-    source.textContent = 'Custom amount';
-    update();
-  });
-  update();
-  effective.replaceChildren(result, input, source);
-  if (p.serviceFeeRate) effective.append(el('small', 'secondary fee-note', `After ${percent(p.serviceFeeRate)} fee`));
 }
 function render(products) {
   latestProducts = products;
@@ -148,10 +117,10 @@ function render(products) {
     assets.append(pair);
     const apr = el('td', p.kind === 'loan' ? 'apr' : 'tier-aprs', p.status === 'ok' && p.kind === 'loan' ? percent(p.apr) : '—');
     if (p.rateNote && p.kind === 'loan' && p.status === 'ok') apr.append(el('small', 'secondary rate-note', p.rateNote));
-    const effective = el('td', 'effective', '—');
     if (p.kind === 'earn') {
-      renderEarn(p, apr, effective);
+      renderEarn(p, apr);
       if (p.status === 'ok' && p.rateNote) apr.append(el('small', 'secondary rate-note', p.rateNote));
+      if (p.status === 'ok' && p.serviceFeeRate) apr.append(el('small', 'secondary rate-note', `${percent(p.serviceFeeRate)} service fee`));
     }
     const updated = el('td', 'updated');
     if (p.status === 'ok') {
@@ -170,9 +139,9 @@ function render(products) {
       if (codes.length) updated.append(el('div', 'secondary', codes.join(' / ')));
       updated.title = errors[p.error] || 'Fetching rates';
     }
-    row.append(platform, product, assets, apr, effective, updated);
+    row.append(platform, product, assets, apr, updated);
     row.setAttribute('role', 'row');
-    const labels = ['Platform', 'Product', 'Assets', 'Tier APR', 'Effective APR', 'Updated'];
+    const labels = ['Platform', 'Product', 'Assets', 'Tier APR', 'Updated'];
     Array.from(row.children).forEach((cell, index) => {
       cell.dataset.label = labels[index];
       cell.setAttribute('role', 'cell');
@@ -232,8 +201,4 @@ setInterval(() => {
 }, 1000);
 refresh();
 
-mountPositions({ el, logoLabel, onAccountChange(sections, forgetManual = false) {
-  accountAmounts = sections ? accountEarnAmounts(sections) : new Map();
-  if (forgetManual) amounts.clear();
-  if (latestProducts.length) render(latestProducts);
-} });
+mountPositions({ el, logoLabel });

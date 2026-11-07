@@ -7,7 +7,7 @@ await cp(new URL('../web/', import.meta.url), new URL('../dist/', import.meta.ur
 const directory = new URL('../dist/', import.meta.url);
 const appPath = new URL('app.js', directory);
 let app = await readFile(appPath, 'utf8');
-for (const module of ['earn-apr', 'bitget', 'account-amounts', 'positions']) {
+for (const module of ['earn-apr', 'bitget', 'positions']) {
   const moduleContent = await readFile(new URL(`${module}.js`, directory));
   const hash = createHash('sha256').update(moduleContent).digest('hex').slice(0, 12);
   const moduleName = `${module}.${hash}.js`;

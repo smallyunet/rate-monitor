@@ -7,7 +7,7 @@ export function visiblePositions(section) {
   return records;
 }
 
-export function mountPositions({ el, logoLabel, onAccountChange }) {
+export function mountPositions({ el, logoLabel }) {
   const content = document.querySelector('#positions-content');
   const status = document.querySelector('#positions-status');
   const refresh = document.querySelector('#positions-refresh');
@@ -16,10 +16,9 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
   let controller, generation = 0, signingOut = false;
   const labels = ['Platform', 'Product', 'Assets', 'Position', 'Updated'];
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
-  function clear(forgetManual = false) {
+  function clear() {
     content.replaceChildren(); content.hidden = true;
     refresh.hidden = true; signOut.hidden = true; signIn.hidden = false;
-    onAccountChange(null, forgetManual);
   }
   function cell(row, label, value) {
     const td = el('td'); td.dataset.label = label; td.setAttribute('role', 'cell');
@@ -98,7 +97,6 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
       signIn.hidden = true; signOut.hidden = false; refresh.hidden = false;
       const ok = data.sections.filter(s => ['ok', 'partial'].includes(s.status)).length;
       status.textContent = `${ok} / ${data.sections.length}`;
-      onAccountChange(data.sections);
     } catch (error) {
       if (current !== generation || error.name === 'AbortError') return;
       clear(); status.textContent = 'Positions unavailable';
@@ -106,7 +104,7 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
   }
   refresh.addEventListener('click', load);
   signOut.addEventListener('click', async () => {
-    signingOut = true; ++generation; controller?.abort(); clear(true); status.textContent = 'Signing out…'; signIn.hidden = true;
+    signingOut = true; ++generation; controller?.abort(); clear(); status.textContent = 'Signing out…'; signIn.hidden = true;
     try {
       const response = await fetch('/cdn-cgi/access/logout', { cache: 'no-store', redirect: 'manual' });
       if (response.status >= 400) throw new Error();
@@ -114,7 +112,7 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
     } catch { status.textContent = 'Sign out failed. Reload and try again.'; }
     finally { signingOut = false; signIn.hidden = false; }
   });
-  window.addEventListener('pagehide', () => { ++generation; controller?.abort(); clear(true); });
+  window.addEventListener('pagehide', () => { ++generation; controller?.abort(); clear(); });
   window.addEventListener('pageshow', event => { if (event.persisted) load(); });
   load();
 }
