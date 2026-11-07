@@ -1,8 +1,9 @@
 const ENDPOINT = 'https://rate-monitor-api.smallyu.workers.dev/api/rates';
 const descriptors = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
-  { id: 'binance-earn-usdc', platform: 'Binance', kind: 'earn', asset: 'USDC', name: 'Simple Earn · Flexible' },
-  { id: 'binance-earn-usdt', platform: 'Binance', kind: 'earn', asset: 'USDT', name: 'Simple Earn · Flexible' },
+  { id: 'binance-loan-usdt', platform: 'Binance', kind: 'loan', asset: 'USDT', name: 'Flexible Loan', collateral: 'BTC' },
+  { id: 'binance-earn-usdc', platform: 'Binance', kind: 'earn', asset: 'USDC', name: 'Flexible Earn' },
+  { id: 'binance-earn-usdt', platform: 'Binance', kind: 'earn', asset: 'USDT', name: 'Flexible Earn' },
 ];
 const errors = {
   missing_credentials: 'Credentials not configured', invalid_data: 'Invalid platform response',
@@ -22,44 +23,59 @@ const el = (tag, cls, text) => {
   if (text !== undefined) node.textContent = text;
   return node;
 };
-function detail(parent, text) { parent.append(el('div', '', text)); }
+function logoLabel(name) {
+  const label = el('span', 'logo-label');
+  const icon = el('img', 'logo');
+  icon.src = `./icons/${name === 'Binance' ? 'binance' : name.toLowerCase()}.svg`;
+  icon.alt = '';
+  icon.width = 18;
+  icon.height = 18;
+  label.append(icon, document.createTextNode(name));
+  return label;
+}
 function render(products) {
   const rows = document.querySelector('#rows');
   rows.replaceChildren();
   document.querySelector('#config').hidden = !products.some(p => p.status === 'not_configured');
   for (const p of products) {
     const row = el('tr');
+    const platform = el('td');
+    platform.append(logoLabel(p.platform));
     const product = el('td', 'product', p.name);
-    if (p.kind === 'loan') product.append(el('div', 'secondary', 'BTC collateral'));
-    const apr = el('td');
-    apr.append(el('div', 'apr', p.status === 'ok' ? percent(p.apr) : '—'));
-    apr.append(el('div', 'secondary', p.kind === 'loan' ? 'Published reference' : 'Base real-time APR'));
-    const info = el('td', 'details');
-    if (p.status !== 'ok') {
-      detail(info, errors[p.error] || 'Fetching…');
-      if (Number.isInteger(p.upstreamStatus)) detail(info, `Platform HTTP status: ${p.upstreamStatus}`);
-      if (Number.isFinite(p.upstreamCode)) detail(info, `Platform error code: ${p.upstreamCode}`);
+    const assets = el('td', 'assets');
+    const pair = el('div', 'asset-pair');
+    if (p.kind === 'loan') {
+      pair.append(logoLabel(p.collateral), el('span', 'arrow', '→'));
+      pair.title = 'Collateral → Borrowed asset';
     }
-    else if (p.kind === 'loan') {
-      detail(info, `Current raw rate: ${p.rawRate} (time unit unverified)`);
-      detail(info, `APR record: ${time(p.rateTime)}`);
-      if (!p.rateTime) detail(info, 'No APR reference in the past hour');
-      detail(info, `BTC collateral: ${p.collateralEligible ? 'supported' : 'eligibility not returned'}`);
-      if (p.initialLtv != null) detail(info, `Initial LTV: ${percent(p.initialLtv)} · Liquidation LTV: ${percent(p.liquidationLtv)}`);
+    pair.append(logoLabel(p.asset));
+    assets.append(pair);
+    const apr = el('td', 'apr', p.status === 'ok' ? percent(p.apr) : '—');
+    const bonus = el('td', 'bonus');
+    if (p.status === 'ok' && p.kind === 'earn' && p.tiers?.length) {
+      for (const tier of p.tiers) {
+        const line = el('div', '', `+${percent(tier.bonusApr)}`);
+        line.append(el('span', 'secondary tier', tier.range));
+        bonus.append(line);
+      }
+    } else bonus.textContent = '—';
+    const updated = el('td', 'updated');
+    if (p.status === 'ok') {
+      updated.textContent = time(p.fetchedAt).replace(/^\d{4}-\d{2}-\d{2} /, '');
+      updated.title = time(p.fetchedAt);
+      if (p.kind === 'loan' && p.collateralEligible === false) updated.append(el('div', 'error', 'BTC unavailable'));
+      if (p.kind === 'earn' && p.soldOut === true) updated.append(el('div', 'error', 'Sold out'));
+      else if (p.kind === 'earn' && p.canPurchase === false) updated.append(el('div', 'error', 'Unavailable'));
     } else {
-      if (p.tiers?.length) {
-        detail(info, 'Additional tier APR (within each eligible range):');
-        for (const tier of p.tiers) detail(info, `${tier.range}: +${percent(tier.bonusApr)}`);
-      } else detail(info, 'No additional tier bonus');
-      detail(info, p.soldOut === true ? 'Sold out' : p.canPurchase === true ? 'Available to subscribe' : p.canPurchase === false ? 'Subscriptions unavailable' : 'Subscription status unknown');
+      updated.textContent = p.status === 'error' ? 'Error' : p.status === 'not_configured' ? 'No API key' : 'Loading…';
+      updated.classList.toggle('error', p.status === 'error');
+      const codes = [p.upstreamStatus, p.upstreamCode].filter(Number.isFinite);
+      if (codes.length) updated.append(el('div', 'secondary', codes.join(' / ')));
+      updated.title = errors[p.error] || 'Fetching rates';
     }
-    const status = el('td');
-    status.append(el('div', p.status === 'error' ? 'error' : '',
-      p.status === 'ok' ? 'Fetched' : p.status === 'error' ? 'Failed' : p.status === 'not_configured' ? 'Not configured' : 'Fetching…'));
-    status.append(el('div', 'secondary', p.fetchedAt ? time(p.fetchedAt) : 'No valid data'));
-    row.append(el('td', '', p.platform), product, el('td', '', p.asset), apr, info, status);
+    row.append(platform, product, assets, apr, bonus, updated);
     row.setAttribute('role', 'row');
-    const labels = ['Platform', 'Product', 'Asset', 'APR', 'Details', 'Status / fetched at'];
+    const labels = ['Platform', 'Product', 'Assets', 'APR', 'Bonus APR', 'Updated'];
     Array.from(row.children).forEach((cell, index) => {
       cell.dataset.label = labels[index];
       cell.setAttribute('role', 'cell');
@@ -74,8 +90,8 @@ async function refresh() {
   const button = document.querySelector('#refresh');
   button.disabled = true;
   document.querySelector('#rates').setAttribute('aria-busy', 'true');
-  document.querySelector('#status').textContent = 'Fetching Binance rates…';
-  document.querySelector('#updated').textContent = 'Request in progress';
+  document.querySelector('#status').textContent = 'Loading…';
+  document.querySelector('#updated').textContent = '';
   // Clear old quotes so a failed refresh cannot appear to be current.
   render(descriptors.map(p => ({ ...p, status: 'loading', apr: null })));
   try {
@@ -90,13 +106,13 @@ async function refresh() {
     render(products);
     const ok = products.filter(p => p.status === 'ok').length;
     document.querySelector('#status').textContent = products.every(p => p.status === 'not_configured')
-      ? 'Connected · Binance credentials not configured'
-      : `${ok} / ${products.length} products fetched${ok < products.length ? ' · Some data unavailable' : ''}`;
-    document.querySelector('#updated').textContent = `Requested: ${time(data.requestedAt)}`;
+      ? 'API key required'
+      : `${ok} / ${products.length}`;
+    document.querySelector('#updated').textContent = time(data.requestedAt);
   } catch {
     render(descriptors.map(p => ({ ...p, status: 'error', apr: null, error: 'service_error' })));
-    document.querySelector('#status').textContent = 'Connection failed · Try again later';
-    document.querySelector('#updated').textContent = `Attempted: ${time(new Date().toISOString())}`;
+    document.querySelector('#status').textContent = 'Connection failed';
+    document.querySelector('#updated').textContent = time(new Date().toISOString());
   } finally {
     button.disabled = false;
     document.querySelector('#rates').setAttribute('aria-busy', 'false');

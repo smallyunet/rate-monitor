@@ -1,6 +1,7 @@
 // Deliberately self-contained: deploy this file with Wrangler or the dashboard editor.
 const PRODUCTS = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', collateral: 'BTC', name: 'Flexible Loan' },
+  { id: 'binance-loan-usdt', platform: 'Binance', kind: 'loan', asset: 'USDT', collateral: 'BTC', name: 'Flexible Loan' },
   { id: 'binance-earn-usdc', platform: 'Binance', kind: 'earn', asset: 'USDC', name: 'Simple Earn · Flexible' },
   { id: 'binance-earn-usdt', platform: 'Binance', kind: 'earn', asset: 'USDT', name: 'Simple Earn · Flexible' },
 ];
@@ -33,19 +34,16 @@ export function normalizeEarn(data, asset) {
     canPurchase: typeof row.canPurchase === 'boolean' ? row.canPurchase : null,
     soldOut: typeof row.isSoldOut === 'boolean' ? row.isSoldOut : null };
 }
-export function normalizeLoan(quote, history, collateral, now = Date.now()) {
-  const current = rows(quote).find(row => row.loanCoin === 'USDC');
+export function normalizeLoan(quote, collateral, asset = 'USDC') {
+  const current = rows(quote).find(row => row.loanCoin === asset);
   if (!current) throw new Error('unavailable');
-  // The loanable-data docs do not specify flexibleInterestRate's time unit.
-  // Never guess a conversion. Use the explicitly annualized history field as reference.
-  const rawRate = rate(current.flexibleInterestRate);
-  const latest = rows(history).filter(row => row.coin === 'USDC' && Number.isFinite(Number(row.time)) && Number(row.time) > 0 && Number(row.time) <= now)
-    .sort((a, b) => Number(b.time) - Number(a.time))[0];
+  // Verified against Binance's Flexible Loan market page (2026-11-07):
+  // a quote near 0.05368 corresponds to the displayed annual rate near 5.368%.
+  // The live field is already an annual decimal, not an hourly rate.
+  const apr = rate(current.flexibleInterestRate);
   const btc = rows(collateral).find(row => row.collateralCoin === 'BTC');
   return {
-    rawRate, apr: latest ? rate(latest.annualizedInterestRate) : null,
-    aprSource: 'latest_published', rateTime: latest ? new Date(Number(latest.time)).toISOString() : null,
-    collateralEligible: !!btc,
+    apr, aprSource: 'realtime', collateralEligible: !!btc,
     initialLtv: btc ? rate(btc.initialLTV) : null,
     liquidationLtv: btc ? rate(btc.liquidationLTV) : null,
   };
@@ -91,15 +89,15 @@ export async function collectBinance(env, fetcher = fetch) {
     tail = job.catch(() => {});
     return job;
   };
+  let collateralRequest;
+  const getCollateral = () => collateralRequest ??= get('/sapi/v2/loan/flexible/collateral/data', { collateralCoin: 'BTC' });
   const tasks = PRODUCTS.map(async product => {
     try {
       let value;
       if (product.kind === 'earn') value = normalizeEarn(await get('/sapi/v1/simple-earn/flexible/list', { asset: product.asset, size: '100' }), product.asset);
       else {
-        const quote = await get('/sapi/v2/loan/flexible/loanable/data', { loanCoin: 'USDC' });
-        const history = await get('/sapi/v2/loan/interestRateHistory', { coin: 'USDC', startTime: String(Date.now() - 3600000), limit: '100' });
-        const collateral = await get('/sapi/v2/loan/flexible/collateral/data', { collateralCoin: 'BTC' });
-        value = normalizeLoan(quote, history, collateral);
+        const quote = await get('/sapi/v2/loan/flexible/loanable/data', { loanCoin: product.asset });
+        value = normalizeLoan(quote, await getCollateral(), product.asset);
       }
       return { ...product, ...value, status: 'ok', fetchedAt: new Date().toISOString() };
     } catch (error) {

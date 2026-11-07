@@ -19,24 +19,28 @@ test('Earn keeps base APR separate from tier bonuses and filters the exact asset
   assert.throws(() => normalizeEarn({rows:[]}, 'USDC'), /unavailable/);
   assert.throws(() => normalizeEarn({rows:[{asset:'USDC'},{asset:'USDC'}]}, 'USDC'), /ambiguous_product/);
 });
-test('Loan never guesses raw rate unit and selects latest non-future published reference', () => {
-  const result=normalizeLoan({rows:[{loanCoin:'USDC',flexibleInterestRate:'0.00000491'}]}, {rows:[
-    {coin:'USDC',annualizedInterestRate:'.03',time:1000},
-    {coin:'USDC',annualizedInterestRate:'.04',time:2000},
-    {coin:'USDC',annualizedInterestRate:'.99',time:4000},
-    {coin:'BTC',annualizedInterestRate:'.88',time:2500},
-  ]}, {rows:[{collateralCoin:'BTC',initialLTV:'.65',liquidationLTV:'.83'}]}, 3000);
-  assert.equal(result.rawRate,.00000491); assert.equal(result.apr,.04);
-  assert.equal(result.aprSource,'latest_published'); assert.equal(result.rateTime,new Date(2000).toISOString());
-  assert.equal(result.collateralEligible,true);
-  const absent=normalizeLoan({rows:[{loanCoin:'USDC',flexibleInterestRate:'0'}]}, {rows:[]}, {rows:[]});
-  assert.equal(absent.apr,null);assert.equal(absent.rawRate,0);assert.equal(absent.collateralEligible,false);
+test('Loan uses current annual decimal quotes for the exact borrow asset, without history', () => {
+  const quote = { rows: [
+    { loanCoin: 'USDC', flexibleInterestRate: '0.05368216' },
+    { loanCoin: 'USDT', flexibleInterestRate: '0.05847405' },
+  ] };
+  const collateral = { rows: [{ collateralCoin: 'BTC', initialLTV: '.78', liquidationLTV: '.91' }] };
+  const usdc = normalizeLoan(quote, collateral, 'USDC');
+  assert.equal(usdc.apr, .05368216);
+  assert.equal(usdc.aprSource, 'realtime');
+  assert.equal(usdc.collateralEligible, true);
+  assert.equal(normalizeLoan(quote, collateral, 'USDT').apr, .05847405);
+  assert.throws(() => normalizeLoan(quote, collateral, 'ETH'), /unavailable/);
+  const zero = normalizeLoan({ rows: [{ loanCoin: 'USDC', flexibleInterestRate: '0' }] }, { rows: [] });
+  assert.equal(zero.apr, 0);
+  assert.equal(zero.collateralEligible, false);
+  assert.throws(() => normalizeLoan({ rows: [{ loanCoin: 'USDC' }] }, collateral), /invalid_data/);
 });
 test('unconfigured service performs no network calls and returns no invented rates', async () => {
   const response=await handle(new Request('https://test/api/rates',{headers:{Origin:'https://smallyunet.github.io'}}),{},()=>{throw new Error('network must not run');});
   assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');
   assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://smallyunet.github.io');
-  const data=await response.json();assert.equal(data.products.length,3);
+  const data=await response.json();assert.equal(data.products.length,4);
   for(const p of data.products){assert.equal(p.status,'not_configured');assert.equal(p.apr,null);}
 });
 test('router restricts methods, paths and browser origins',async()=>{
@@ -56,14 +60,14 @@ test('partial failures stay isolated, signed calls only use allowlisted read end
     if(u.searchParams.get('asset')==='USDT')return Response.json({rows:[{asset:'USDT',latestAnnualPercentageRate:'0',tierAnnualPercentageRate:{}}]});
     return Response.json({code:-2015,msg:'private-key private-secret account information'},{status:401});
   });
-  assert.equal(products.find(p=>p.asset==='USDT').apr,0);
-  assert.equal(products.filter(p=>p.status==='error').length,2);
+  assert.equal(products.find(p=>p.id==='binance-earn-usdt').apr,0);
+  assert.equal(products.filter(p=>p.status==='error').length,3);
   for (const p of products.filter(p => p.status === 'error')) {
     assert.equal(p.upstreamStatus, 401);
     assert.equal(p.upstreamCode, -2015);
   }
   assert.equal(JSON.stringify(products).includes('private-'),false);
-  assert.equal(calls.length,3);
+  assert.equal(calls.length,4);
 });
 test('HTML region restrictions preserve the HTTP status instead of becoming unknown upstream errors', async () => {
   const products = await collectBinance({ BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' },
@@ -82,7 +86,7 @@ test('Cloudflare entry point ignores ExecutionContext and calls the real fetch i
       { BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' },
       { waitUntil() {}, passThroughOnException() {} });
     const data = await response.json();
-    assert.equal(calls, 3);
+    assert.equal(calls, 4);
     assert.ok(data.products.every(p => p.error === 'credentials_error'));
   } finally {
     globalThis.fetch = originalFetch;
@@ -101,4 +105,20 @@ test('connectivity probes use fixed public endpoints without credentials', async
   assert.deepEqual((await response.json()).connectivity, [
     { host: 'api.binance.com', status: 403 }, { host: 'api-gcp.binance.com', status: 200 },
   ]);
+});
+
+test('both live loans and both Earn products succeed with one shared collateral query and no history requests', async () => {
+  const calls = [];
+  const products = await collectBinance({ BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' }, async url => {
+    const u = new URL(url); calls.push(u.pathname);
+    if (u.pathname.endsWith('/loanable/data')) return Response.json({ rows: [{ loanCoin: u.searchParams.get('loanCoin'), flexibleInterestRate: '.05' }] });
+    if (u.pathname.endsWith('/collateral/data')) return Response.json({ rows: [{ collateralCoin: 'BTC', initialLTV: '.78', liquidationLTV: '.91' }] });
+    if (u.pathname.endsWith('/flexible/list')) return Response.json({ rows: [{ asset: u.searchParams.get('asset'), latestAnnualPercentageRate: '.02' }] });
+    throw new Error('Unexpected endpoint');
+  });
+  assert.equal(products.length, 4);
+  assert.ok(products.every(p => p.status === 'ok' && p.apr !== null));
+  assert.equal(products.filter(p => p.kind === 'loan').length, 2);
+  assert.equal(calls.filter(path => path.endsWith('/collateral/data')).length, 1);
+  assert.ok(calls.every(path => !path.includes('History')));
 });

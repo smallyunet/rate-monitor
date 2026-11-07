@@ -1,6 +1,6 @@
 # Rate Monitor
 
-多平台借贷与活期利率看板。第一版支持 Binance Flexible Loan（BTC 抵押 / USDC 借款）及 USDC、USDT Simple Earn Flexible。
+多平台借贷与活期利率看板。第一版支持 Binance Flexible Loan（BTC 抵押 / USDC、USDT 借款）及 USDC、USDT Simple Earn Flexible。
 
 - 网页：https://smallyunet.github.io/rate-monitor/
 - Worker：https://rate-monitor-api.smallyu.workers.dev
@@ -21,7 +21,7 @@ GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名查询�
 
 使用专用只读密钥，无需开启交易或提现权限。不要将密钥写入前端、仓库、Actions 构建参数或公开日志。Binance 的地区、账户产品权限和 IP 限制仍然适用；配置前页面显示“等待配置密钥”。Cloudflare Worker 没有固定出口 IP，不适合依赖固定 IP 白名单的密钥，遇到该限制需另选固定出口。
 
-没有密钥时部署可用，但无法查询实际利率。2026-11-07 已在配置密钥的线上 Worker 验证三项查询成功；Loan 最近一小时的年化参考记录为空，当前原始利率和 BTC 抵押参数可用。
+没有密钥时部署可用，但无法查询实际利率。2026-11-07 已在配置密钥的线上 Worker 验证四项产品查询成功；Loan 使用当前报价作为 APR。
 
 ## 连接故障排查
 
@@ -34,8 +34,8 @@ GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名查询�
 ## 数据口径
 
 - Earn：`GET /sapi/v1/simple-earn/flexible/list`，分别查询 USDC、USDT。基础年化来自 `latestAnnualPercentageRate`；`tierAnnualPercentageRate` 作为额外阶梯加息及额度单列，不将优惠套用全部本金。返回多个同币产品时标记待确认。
-- Loan 当前报价：`GET /sapi/v2/loan/flexible/loanable/data?loanCoin=USDC`，保留 `flexibleInterestRate` 原始数值。当前官方字段说明没有明确时间单位，**不推测其年化换算**；需要在真实 API 与 Binance 页面核对后才能添加可靠换算。
-- Loan 年化参考：`GET /sapi/v2/loan/interestRateHistory`，读取最近一小时记录中最新的 `annualizedInterestRate`，显示记录时间。它是官方公布记录，**不声称等同于此刻报价**；无记录时为缺失，不以 0 替代。请求每页 100 条，可覆盖分钟粒度的一小时；不做历史补采。
+- Loan 当前 APR：`GET /sapi/v2/loan/flexible/loanable/data`，分别查询 `loanCoin=USDC`、`loanCoin=USDT`，直接读取 `flexibleInterestRate` 年化小数。2026-11-07 已用 Binance 官方 [Flexible Loan 市场页](https://www.binance.com/en/flexible-loan) 的 Annually Interest Rate 列核对单位：API 约 `0.05368` 对应页面约 `5.368%`，USDT 页面约 `5.8474%`（报价会随时间变化）。不乘小时数，也不转换成复利 APY。
+- 旧版 APR 为空的原因：只从最近一小时的历史接口读取年化参考，而历史返回空列表；当前报价虽已返回，却未用于 APR。现已去掉历史依赖及对应查询，直接展示当前 APR。
 - BTC 抵押资格及初始/清算 LTV：`GET /sapi/v2/loan/flexible/collateral/data?collateralCoin=BTC`。这只说明资产资格，不保证特定账户能成功借款。
 - 利率统一以 APR 小数存储，前端乘 100 展示百分比。零值有效，缺失值无效。APR 不等于 APY。
 - 每个产品独立报告成功、失败或未配置；接口异常不影响其他产品。刷新前清除旧报价，不把旧数据当作实时值。
@@ -58,9 +58,13 @@ Worker 的源代码是 `worker/index.js`（单文件 ES module）。可在 Cloud
 ## API 与扩展
 
 - `GET /health`：服务状态和是否已配置密钥，不返回密钥。
-- `GET /api/rates`：按需查询三项产品，返回 `mode: on-demand`、产品状态、时间及公开利率字段。
+- `GET /api/rates`：按需查询四项产品，返回 `mode: on-demand`、产品状态、时间及公开利率字段。
 - API 只有固定查询路由；不接受调用者传入任意 Binance 路径、账户、币种或签名参数。
 - 允许浏览器 Origin 默认为 `https://smallyunet.github.io`，可用 Worker 文本变量 `ALLOWED_ORIGIN` 修改。CORS 是浏览器限制，不等于用户认证。API 公开展示产品利率；如流量增加，应在 Cloudflare 配置限流。
 - 新增平台时添加对应的采集适配器，再扩充产品描述与页面分组；保持统一的 `platform / kind / asset / apr / status / fetchedAt` 字段。
 
 官方文档：[Binance Loan](https://developers.binance.com/en/docs/catalog/investment-and-services-crypto-loan/api/rest-api/flexible-rate)、[Binance Earn](https://developers.binance.com/en/docs/catalog/investment-and-services-simple-earn/api/rest-api/flexible-locked)。
+
+## 图标
+
+`web/icons/` 中 Binance（BNB 标志）、BTC、USDT、USDC SVG 来自 [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons)，随仓库保存许可文件 `web/icons/LICENSE.md`。页面使用本地图标，不依赖第三方图片请求。

@@ -11,11 +11,9 @@
 <body>
   <main>
     <header><h1>Rate Monitor</h1><nav><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button">Refresh</button></nav></header>
-    <div class="statusbar" aria-live="polite"><span id="status">Connecting to rate service…</span><span id="updated">Fetched on page load or manual refresh</span></div>
-    <div class="table-wrap"><table role="table" aria-label="Current rates" aria-busy="true" id="rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Asset</th><th role="columnheader" scope="col">APR</th><th role="columnheader" scope="col">Details</th><th role="columnheader" scope="col">Status / fetched at</th></tr></thead><tbody role="rowgroup" id="rows"></tbody></table></div>
-    <div id="config" class="notice" hidden>Binance API credentials are not configured. Add <code>BINANCE_API_KEY</code> and <code>BINANCE_API_SECRET</code> as Secrets in Cloudflare Worker settings, then refresh.</div>
-    <p class="note">Earn APR excludes tier bonuses listed under Details. Loan APR is the latest published reference, with its record time shown; the current raw rate is not converted while its time unit is unverified.</p>
-    <p class="note">Rates are fetched on demand. No scheduled sampling or historical storage. APR is not APY.</p>
+    <div class="statusbar" aria-live="polite"><span id="status">Loading…</span><span id="updated"></span></div>
+    <div class="table-wrap"><table role="table" aria-label="Current rates" aria-busy="true" id="rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">APR</th><th role="columnheader" scope="col">Bonus APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="rows"></tbody></table></div>
+    <div id="config" class="notice" hidden>Binance API key required.</div>
   </main>
 </body>
 </html>

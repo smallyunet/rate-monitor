@@ -16,7 +16,9 @@ th { background: #f6f8fa; font-weight: 600; white-space: nowrap; }
 th, td { padding: 10px 12px; border-bottom: 1px solid #d8dee4; vertical-align: top; }
 td { min-width: 85px; }
 td.product { min-width: 145px; }
-td.details { min-width: 265px; max-width: 420px; overflow-wrap: anywhere; }
+td.assets { min-width: 170px; }
+td.bonus { min-width: 160px; }
+td.updated { min-width: 110px; }
 .apr { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 .secondary, .note { color: #57606a; font-size: 12px; }
 .secondary { margin-top: 3px; }
@@ -39,7 +41,7 @@ code { font-size: 11px; }
   thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   tbody tr { display: block; padding: 10px 0; border-top: 1px solid #d8dee4; }
   tbody tr:last-child { border-bottom: 1px solid #d8dee4; }
-  tbody td, tbody td.product, tbody td.details {
+  tbody td, tbody td.product, tbody td.assets, tbody td.bonus, tbody td.updated {
     display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 12px;
     width: 100%; min-width: 0; max-width: none; padding: 5px 0; border: 0;
   }
@@ -47,5 +49,11 @@ code { font-size: 11px; }
   .cell-value { overflow-wrap: anywhere; }
 }
 @media (max-width: 360px) {
-  tbody td, tbody td.product, tbody td.details { grid-template-columns: 88px minmax(0, 1fr); gap: 8px; }
+  tbody td, tbody td.product, tbody td.assets, tbody td.bonus, tbody td.updated { grid-template-columns: 88px minmax(0, 1fr); gap: 8px; }
 }
+
+.logo-label, .asset-pair { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+.logo { width: 18px; height: 18px; flex: none; }
+.asset-pair { flex-wrap: wrap; gap: 8px; }
+.arrow { color: #8c959f; }
+.tier { margin-left: 6px; }
