@@ -2,15 +2,15 @@
 
 多平台借贷与活期利率看板。支持 Binance 和 Bitget 的 BTC 抵押 / USDC、USDT 活期借款，以及 Binance、Bitget 的 USDC、USDT Flexible Earn。
 
-- 网页：https://smallyunet.github.io/rate-monitor/
+- 网页：https://rate-monitor-api.smallyu.workers.dev/
 - Worker：https://rate-monitor-api.smallyu.workers.dev
 - 本地目录：`/Users/smallyu/work/github/rate-monitor`
 
 ## 工作方式
 
-GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名接口 + Bitget 官方公开市场接口。
+Cloudflare Worker 同源托管网页与 API → Binance、Bitget、OKX 市场接口。
 
-打开页面或手动刷新时获取数据。不运行定时采样，不存储账户或历史数据，不执行交易。私人仓位通过独立的 Cloudflare Access 路径按需读取。GitHub Actions 仅检查代码、构建和部署 Pages。
+打开页面或手动刷新时获取数据。不运行定时采样，不存储账户或历史数据，不执行交易。私人仓位通过独立的 Cloudflare Access 路径按需读取。GitHub Actions 仅检查代码与构建，不部署站点。
 
 ## 配置密钥
 
@@ -62,7 +62,7 @@ npm run build
 npm run build:worker
 ```
 
-`web/` 为统一网页源文件，`dist/` 为 Pages 跳转入口的构建产物。推送 `main` 后，GitHub Actions 自动发布 Pages。Worker bundle 同时包含公开静态页面和接口，需单独部署。
+`web/` 为统一网页源文件，`dist/` 为可供静态预览的网页构建产物。GitHub Pages 已关闭；推送 `main` 或创建 PR 时，GitHub Actions 只运行检查、测试和构建。Worker bundle 同时包含公开静态页面和接口，需单独部署。
 
 Worker 入口为 `worker/index.js`，包含私人仓位与身份验证模块。运行 `npm run build:worker` 后，将 `build/worker.js` 的完整内容粘贴到 Cloudflare 的 Edit code 并 Deploy，或在已登录的 Wrangler 环境执行 `npx wrangler deploy`。`wrangler.jsonc` 保留了服务名与允许的前端 Origin。Worker 当前不通过 Actions 自动部署，修改 Worker 后需单独部署。
 
@@ -110,7 +110,7 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 
 ## 同页 Rates / Positions
 
-应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在左，My Positions 在右，窄屏上下排列。原 GitHub Pages 地址保留为自动跳转入口。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
+应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在左，My Positions 在右，窄屏上下排列。GitHub Pages 已关闭，原地址不再提供跳转，请直接使用 Worker 地址。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
 
 未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM、实际余额默认值和自定义金额，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
 
