@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { verifyPositionsIdentity } from '../worker/access-auth.js';
-const allowed = new Set(['/api/v3/loan/borrow-ongoing', '/api/v3/earn/savings/account', '/api/v3/earn/savings/assets']);
+const allowed = new Set(['/api/v3/loan/borrow-ongoing', '/api/v3/earn/savings/account', '/api/v3/earn/savings/assets', '/api/v3/earn/savings/product']);
 const credentialNames = ['ACCESS-KEY','ACCESS-SIGN','ACCESS-TIMESTAMP','ACCESS-PASSPHRASE'];
 let recent = [];
 export async function relay(request, env = process.env, fetcher = fetch) {
@@ -8,14 +8,24 @@ export async function relay(request, env = process.env, fetcher = fetch) {
   const fail = (status, error) => new Response(JSON.stringify({error}), {status,headers});
   const url = new URL(request.url);
   if (request.method !== 'GET' || !allowed.has(url.pathname)) return fail(404,'not_found');
-  if (url.pathname === '/api/v3/earn/savings/assets') {
+  const publicProducts = url.pathname === '/api/v3/earn/savings/product';
+  if (publicProducts) {
+    const params = url.searchParams;
+    if (!['USDC','USDT'].includes(params.get('coin')) || params.get('filter') !== 'available' ||
+        [...params.keys()].some(k => !['coin','filter'].includes(k)) ||
+        [...params.keys()].some(k => params.getAll(k).length !== 1)) return fail(400,'invalid_query');
+  } else if (url.pathname === '/api/v3/earn/savings/assets') {
     const params = url.searchParams;
     if (!['flexible','fixed'].includes(params.get('periodType')) || params.get('limit') !== '100' ||
         [...params.keys()].some(k => !['periodType','limit','cursor'].includes(k)) ||
         [...params.keys()].some(k => params.getAll(k).length !== 1) ||
         (params.has('cursor') && !/^\d{1,40}$/.test(params.get('cursor')))) return fail(400,'invalid_query');
   } else if (url.search) return fail(404,'not_found');
-  try { await verifyPositionsIdentity(request, env, fetcher); } catch { return fail(401,'unauthorized'); }
+  // The sole public relay route is a fixed market-product query. It still requires
+  // valid exchange-signed headers; all account/position routes retain Access JWT checks.
+  if (!publicProducts) {
+    try { await verifyPositionsIdentity(request, env, fetcher); } catch { return fail(401,'unauthorized'); }
+  }
   const now=Date.now();
   recent=recent.filter(t=>now-t<10000);
   if(recent.length>=60) return fail(429,'rate_limited');

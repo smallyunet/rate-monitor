@@ -77,3 +77,6 @@ code { font-size: 11px; }
 .amount-source { display: block; margin-top: 3px; }
 .position-values { min-width: 0; font-variant-numeric: tabular-nums; }
 #positions-content .secondary { display: block; }
+
+.offer-select { display: block; max-width: 100%; width: 190px; margin-top: 5px; padding: 5px; border: 1px solid #d0d7de; border-radius: 4px; color: inherit; background: #fff; font: inherit; }
+@media (max-width: 760px) { .offer-select { min-height: 44px; font-size: 14px; } }

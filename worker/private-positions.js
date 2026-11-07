@@ -56,7 +56,7 @@ export async function bitgetGet(path, env, fetcher = fetch) {
   }
   try {
     response = await fetcher(base + path, { headers: {
-      ...(env.BITGET_RELAY_URL ? { 'Cf-Access-Jwt-Assertion': env.positionsJwt } : {}),
+      ...(env.BITGET_RELAY_URL && env.positionsJwt ? { 'Cf-Access-Jwt-Assertion': env.positionsJwt } : {}),
       'ACCESS-KEY': env.BITGET_API_KEY, 'ACCESS-SIGN': btoa(String.fromCharCode(...bytes)),
       'ACCESS-TIMESTAMP': timestamp, 'ACCESS-PASSPHRASE': env.BITGET_API_PASSPHRASE, locale: 'en-US',
     }, signal: AbortSignal.timeout(12000), redirect: 'manual' });

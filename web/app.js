@@ -1,8 +1,9 @@
 import { accountEarnAmounts, selectEarnAmount } from './account-amounts.js';
 import { mountPositions } from './positions.js';
-import { earnTiers, effectiveApr, defaultEarnAmount } from './earn-apr.js';
+import { productEarnTiers, effectiveApr, defaultEarnAmount } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
 const amounts = new Map();
+const selectedOffers = new Map();
 let accountAmounts = new Map();
 let latestProducts = [];
 const ENDPOINT = '/api/rates';
@@ -13,6 +14,8 @@ const descriptors = [
   { id: 'binance-earn-usdt', platform: 'Binance', kind: 'earn', asset: 'USDT', name: 'Flexible Earn' },
   { id: 'bitget-loan-usdc', platform: 'Bitget', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
   { id: 'bitget-loan-usdt', platform: 'Bitget', kind: 'loan', asset: 'USDT', name: 'Flexible Loan', collateral: 'BTC' },
+  { id: 'bitget-earn-usdc', platform: 'Bitget', kind: 'earn', asset: 'USDC', name: 'Flexible Earn' },
+  { id: 'bitget-earn-usdt', platform: 'Bitget', kind: 'earn', asset: 'USDT', name: 'Flexible Earn' },
 ];
 const errors = {
   missing_credentials: 'Credentials not configured', invalid_data: 'Invalid platform response',
@@ -65,7 +68,7 @@ function tierLabel(tier, asset) {
 function renderEarn(p, apr, effective) {
   let tiers;
   if (p.status === 'ok') {
-    try { tiers = earnTiers(p.apr, p.tiers, p.asset); }
+    try { tiers = productEarnTiers(p); }
     catch { apr.textContent = 'Tiers unavailable'; apr.classList.add('error'); }
   }
   if (tiers) {
@@ -107,12 +110,27 @@ function render(products) {
   latestProducts = products;
   const rows = document.querySelector('#rows');
   rows.replaceChildren();
-  document.querySelector('#config').hidden = !products.some(p => p.status === 'not_configured');
-  for (const p of products) {
+  document.querySelector('#config').hidden = !products.some(p => p.platform === 'Binance' && p.status === 'not_configured');
+  for (const original of products) {
+    const offers = Array.isArray(original.offers) ? original.offers : [];
+    const chosen = offers.find(offer => offer.productId === selectedOffers.get(original.id)) || offers[0];
+    const p = chosen ? { ...original, ...chosen } : original;
     const row = el('tr');
     const platform = el('td');
     platform.append(logoLabel(p.platform));
     const product = el('td', 'product', p.name);
+    if (offers.length > 1 && p.status === 'ok') {
+      const select = el('select', 'offer-select');
+      select.setAttribute('aria-label', `${p.platform} ${p.asset} flexible product`);
+      for (const offer of offers) {
+        const first = offer.rateTiers[0];
+        const option = el('option', '', `${tierLabel(first, p.asset)} · ${percent(first.apr)}`);
+        option.value = offer.productId; option.selected = offer.productId === p.productId;
+        select.append(option);
+      }
+      select.addEventListener('change', () => { selectedOffers.set(p.id, select.value); render(latestProducts); });
+      product.append(select);
+    }
     const assets = el('td', 'assets');
     const pair = el('div', 'asset-pair');
     if (p.kind === 'loan') {
@@ -172,9 +190,9 @@ async function refresh() {
       const p = data.products.find(p => p.id === d.id);
       return p ? { ...p, ...d } : { ...d, status: 'error', apr: null, error: 'invalid_data' };
     });
-    if (products.some(p => p.platform === 'Bitget' && p.status === 'error')) {
+    if (products.some(p => p.platform === 'Bitget' && p.kind === 'loan' && p.status === 'error')) {
       const fallback = await publicBitgetRates();
-      products = products.map(p => p.platform === 'Bitget' && p.status === 'error'
+      products = products.map(p => p.platform === 'Bitget' && p.kind === 'loan' && p.status === 'error'
         ? fallback.find(item => item.id === p.id) || p : p);
     }
     render(products);

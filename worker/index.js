@@ -1,3 +1,4 @@
+import { collectBitgetEarn } from './bitget-earn.js';
 import { servePublicSite } from './public-site.js';
 import { handlePrivate } from './private-positions.js';
 // Bundle with npm run build:worker before using the dashboard editor.
@@ -180,7 +181,7 @@ export async function handle(request, env, fetcher = fetch) {
   }
   if (path === '/health') return json({ service: 'rate-monitor', version: 1, configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET) });
   if (path !== '/api/rates') return json({ error: 'not_found' }, 404);
-  const products = (await Promise.all([collectBinance(env, fetcher), collectBitget(fetcher)])).flat();
+  const products = (await Promise.all([collectBinance(env, fetcher), collectBitget(fetcher), collectBitgetEarn(env, fetcher)])).flat();
   return json({ requestedAt: new Date().toISOString(), mode: 'on-demand', products });
 }
 // Cloudflare passes ExecutionContext as argument three, not a fetch implementation.

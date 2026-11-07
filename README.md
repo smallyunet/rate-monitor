@@ -1,6 +1,6 @@
 # Rate Monitor
 
-多平台借贷与活期利率看板。支持 Binance 和 Bitget 的 BTC 抵押 / USDC、USDT 活期借款，以及 Binance USDC、USDT Simple Earn Flexible。
+多平台借贷与活期利率看板。支持 Binance 和 Bitget 的 BTC 抵押 / USDC、USDT 活期借款，以及 Binance、Bitget 的 USDC、USDT Flexible Earn。
 
 - 网页：https://smallyunet.github.io/rate-monitor/
 - Worker：https://rate-monitor-api.smallyu.workers.dev
@@ -69,7 +69,7 @@ Worker 入口为 `worker/index.js`，包含私人仓位与身份验证模块。�
 ## API 与扩展
 
 - `GET /health`：服务状态和是否已配置密钥，不返回密钥。
-- `GET /api/rates`：按需查询六项产品，返回 `mode: on-demand`、产品状态、时间及公开利率字段。
+- `GET /api/rates`：按需查询八项产品，返回 `mode: on-demand`、产品状态、时间及公开利率字段。
 - API 只有固定查询路由；不接受调用者传入任意 Binance 路径、账户、币种或签名参数。
 - 允许浏览器 Origin 默认为 `https://smallyunet.github.io`，可用 Worker 文本变量 `ALLOWED_ORIGIN` 修改。CORS 是浏览器限制，不等于用户认证。API 公开展示产品利率；如流量增加，应在 Cloudflare 配置限流。
 - 新增平台时添加对应的采集适配器，再扩充产品描述与页面分组；保持统一的 `platform / kind / asset / apr / status / fetchedAt` 字段。
@@ -104,7 +104,7 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 
 `server/relay.js` 在 `/opt/rate-monitor` 独立部署，Docker 容器仅加入已有入口网络，没有公开容器端口。现有 Caddy 在 `c.dark20.xyz/_rate-monitor/*` 转发到容器，原网站路由保留；Caddy 源配置及 compose override 保留了重建后的路由配置。
 
-转发服务校验同一 Access JWT 签名、AUD、issuer、邮箱及过期时间，且仅允许借贷、Savings 总览、Savings 明细这三个 Bitget GET 路径；明细 query 只允许 flexible/fixed、固定 limit=100 和数字 cursor，不接受任意上游或交易接口。平台签名由 Worker 生成；服务器临时转发 API key、签名与 passphrase，但不持久保存这些值或 Bitget API secret，且不把 Access JWT 转发到交易所。使用 HTTPS、禁用缓存和重定向、限制返回体大小和请求频率。服务器环境文件仅包含 Access 配置和允许邮箱，权限 600，不纳入仓库。
+转发服务校验同一 Access JWT 签名、AUD、issuer、邮箱及过期时间，私人接口仅允许借贷、Savings 总览、Savings 明细三个 GET 路径并校验 Access；明细 query 只允许 flexible/fixed、固定 limit=100 和数字 cursor。另有公开市场产品查询路径，仅允许 USDC/USDT 与 filter=available，仍须交易所签名，不接受任意上游或交易接口。平台签名由 Worker 生成；服务器临时转发 API key、签名与 passphrase，但不持久保存这些值或 Bitget API secret，且不把 Access JWT 转发到交易所。使用 HTTPS、禁用缓存和重定向、限制返回体大小和请求频率。服务器环境文件仅包含 Access 配置和允许邮箱，权限 600，不纳入仓库。
 
 部署时复制 `server/relay.js`、`server/compose.yml`、`worker/access-auth.js`（服务器文件名 access-auth.js）到服务器目录，并配置 relay.env，然后 `docker compose up -d`。更新 worker/access-auth.js 时须同步服务器文件。`server/install-route.py` 是现有 ssh c Caddy 入口的幂等配置脚本，会先保存原配置。
 
@@ -115,3 +115,13 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM、实际余额默认值和自定义金额，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
 
 Rates 的 Effective APR 金额优先级：手动输入 > 已认证的 Binance Flexible Earn 完整成功快照中的实际余额 > 档位上限两倍。零余额保持 0，零金额不计算 APR；失败/缺失/partial 不能当作实际余额。借贷抵押与 Earn 不合计，Bitget Savings 估值不冒充 Binance Earn 数量。两个区域独立手动刷新，无定时采样。
+
+## Bitget Flexible Earn 利率
+
+- `GET /api/v3/earn/savings/product?coin=USDC|USDT&filter=available` 需要 Bitget 只读密钥签名，由 Worker 使用既有 Secrets 签名，经 ssh c 转发。此固定市场查询不依赖用户登录；所有仓位接口的 JWT 限制保持不变，密钥及签名不返回前端。
+- 仅选择 `periodType=flexible`、`productLevel=normal` 的普通用户产品，不用新用户、VIP、定期活动利率替代。存在多个普通活期方案时保留各自独立档位，并提供方案选择；默认按平台接口顺序，不自动挑最高收益，也不把不同方案的档位混在一起。
+- `apyList.currentApy` 按百分数转成小数（6.00 → 0.06），每个档位为完整年化，不是叠加奖励。按 `minStepVal` / `maxStepVal` 展示分档，并按金额加权计算 Effective APR。Bitget 官方 Savings 说明将收益口径称为 APR，按日计算利息，不将字段名直接当成复利 APY。
+- 有限的最后一档上限保留为覆盖边界；金额超出已知范围时不猜测收益。默认金额取最后一档之前最高分档边界的两倍，且必须处于已知覆盖范围内。仅一个有限档位时不推测默认金额。
+- Bitget Savings 仓位明细只有近三个月创建范围，不能作为完整余额默认值；继续使用档位默认金额或手动输入。
+
+官方文档：[Savings API](https://www.bitget.com/docs/catalog/earn/savings#get-savings-product-list)、[Flexible Savings 收益说明](https://www.bitget.com/support/articles/12560603826506)。

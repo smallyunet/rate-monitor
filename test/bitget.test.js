@@ -63,9 +63,9 @@ test('Bitget failure leaves all Binance products usable and never receives Binan
       return Response.json({ rows: [{ asset: u.searchParams.get('asset'), latestAnnualPercentageRate: '.02' }] });
     });
   const { products } = await response.json();
-  assert.equal(products.length, 6);
+  assert.equal(products.length, 8);
   assert.ok(products.filter(p => p.platform === 'Binance').every(p => p.status === 'ok'));
-  assert.ok(products.filter(p => p.platform === 'Bitget').every(p => p.status === 'error' && p.upstreamCode === 40037));
+  assert.ok(products.filter(p => p.platform === 'Bitget' && p.kind === 'loan').every(p => p.status === 'error' && p.upstreamCode === 40037));
 });
 test('browser fallback uses anonymous CORS requests and matches Worker rate normalization', async () => {
   const data = fixture();

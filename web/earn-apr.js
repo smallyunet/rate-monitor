@@ -24,13 +24,25 @@ export function earnTiers(baseApr, bonuses, asset) {
 }
 export function effectiveApr(tiers, amount) {
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null;
+  if (!tiers.length || amount > tiers[tiers.length - 1].to) return null;
   return tiers.reduce((total, tier) => {
     const covered = Math.max(0, Math.min(amount, tier.to) - tier.from);
     return total + (covered / amount) * tier.apr;
   }, 0);
 }
 export function defaultEarnAmount(tiers) {
-  const bound = tiers.reduce((max, tier) => Number.isFinite(tier.to) ? Math.max(max, tier.to) : max, 0);
+  const bound = tiers.slice(0, -1).reduce((max, tier) => Number.isFinite(tier.to) ? Math.max(max, tier.to) : max, 0);
   const amount = bound * 2;
-  return amount > 0 && Number.isFinite(amount) ? amount : null;
+  return amount > 0 && Number.isFinite(amount) && amount <= tiers[tiers.length - 1].to ? amount : null;
+}
+
+export function productEarnTiers(product) {
+  if (product.rateTiers === undefined) return earnTiers(product.apr, product.tiers, product.asset);
+  if (!Array.isArray(product.rateTiers) || !product.rateTiers.length) throw new Error('invalid_tiers');
+  let cursor = 0;
+  return product.rateTiers.map(tier => {
+    if (!Number.isFinite(tier.from) || !Number.isFinite(tier.to) || tier.from !== cursor || tier.to <= tier.from || !Number.isFinite(tier.apr) || tier.apr < 0) throw new Error('invalid_tiers');
+    cursor = tier.to;
+    return { ...tier };
+  });
 }
