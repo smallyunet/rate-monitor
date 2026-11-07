@@ -110,7 +110,7 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 
 ## 同页 Rates / Positions
 
-应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在上，My Positions 在下。原 GitHub Pages 地址保留为自动跳转入口。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
+应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在左，My Positions 在右，窄屏上下排列。原 GitHub Pages 地址保留为自动跳转入口。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
 
 未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM、实际余额默认值和自定义金额，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
 
@@ -125,3 +125,16 @@ Rates 的 Effective APR 金额优先级：手动输入 > 已认证的 Binance Fl
 - Bitget Savings 仓位明细只有近三个月创建范围，不能作为完整余额默认值；继续使用档位默认金额或手动输入。
 
 官方文档：[Savings API](https://www.bitget.com/docs/catalog/earn/savings#get-savings-product-list)、[Flexible Savings 收益说明](https://www.bitget.com/support/articles/12560603826506)。
+
+## OKX 市场利率与深色看板
+
+桌面宽屏采用深色双栏：左侧 Rates，右侧 My Positions；1190px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。登录、实际余额默认值和独立刷新不变。
+
+OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需密钥：
+
+- Loan：OKX 官网使用的匿名 `GET /priapi/v1/multi-collateral/loans/outer/loan-data`，精确匹配 `loanableCoinList.symbol`，`lastHourRate` 已是年化小数，不再乘 8760；从 `collateralList` 检查 BTC。此官网接口未列入稳定的 V5 文档，结构变化会显示错误，不能用其他产品利率兜底。LTV 未提供时保持未知。
+- Earn：官方 V5 `GET /api/v5/finance/savings/lending-rate-history?ccy=USDC|USDT&limit=1`，使用最近结算小时的 `lendingRate`（年化小数），不用 `rate`（借款利率）、24 小时平均或下一小时预估。保留结算时间，超过两小时显示 stale，不冒充实时成功。
+- Tier APR 显示未扣费的市场出借 APR，并注明最近小时、不含奖励；Effective APR 按金额计算后扣除 15% 服务费，旁边明确标注。仅限新用户、地区、期限或额度的奖励没有混入市场利率；因此这不是官网最高活动 APR。无奖励档位时不猜测默认金额。
+- 各产品失败独立隔离；只公开规范化的利率、时间与安全错误码，不传递上游正文。
+
+来源：[OKX V5 Simple Earn 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-public-borrow-history-public)、[Simple Earn Flexible 收益与服务费](https://www.okx.com/en-us/help/simple-earn-faq)、[OKX Loan](https://www.okx.com/loan)。

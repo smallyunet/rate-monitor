@@ -10,16 +10,20 @@
 </head>
 <body>
   <main>
-    <header><h1>Rate Monitor</h1><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button">Refresh</button></nav></header>
-    <h2 class="section-title">Rates</h2>
+    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1><span class="header-meta">DASHBOARD</span></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button">Refresh</button></nav></header>
+    <div class="dashboard">
+    <section class="panel rates-panel" aria-labelledby="rates-title">
+    <div class="panel-heading"><h2 class="section-title" id="rates-title">Rates</h2><span class="panel-meta">LOAN / EARN</span></div>
     <div class="statusbar" aria-live="polite"><span id="status">Loading…</span><span id="updated"></span></div>
     <div class="table-wrap"><table role="table" aria-label="Current rates" aria-busy="true" id="rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">Tier APR</th><th role="columnheader" scope="col">Effective APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="rows"></tbody></table></div>
     <div id="config" class="notice" hidden>Binance API key required.</div>
-    <section id="positions" aria-labelledby="positions-title">
+    </section>
+    <section class="panel positions-panel" id="positions" aria-labelledby="positions-title">
       <header class="positions-header"><h2 id="positions-title">My Positions</h2><button id="positions-refresh" hidden type="button">Refresh</button></header>
       <div class="statusbar" role="status"><span id="positions-status"></span></div>
       <div id="positions-content" hidden></div>
     </section>
+    </div>
   </main>
 </body>
 </html>

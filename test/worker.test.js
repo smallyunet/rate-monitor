@@ -40,7 +40,7 @@ test('unconfigured Binance does not block public Bitget data', async () => {
   const response=await handle(new Request('https://test/api/rates',{headers:{Origin:'https://smallyunet.github.io'}}),{},()=>Response.json({ code: '00000', data: { loanInfos: [{ coin: 'USDC', rateFlexible: '.0372' }, { coin: 'USDT', rateFlexible: '.062' }], pledgeInfos: [{ coin: 'BTC', initRate: '.65', forceRate: '.91' }] } }));
   assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');
   assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://smallyunet.github.io');
-  const data=await response.json();assert.equal(data.products.length,8);
+  const data=await response.json();assert.equal(data.products.length,12);
   for(const p of data.products.filter(p => p.platform === 'Binance')){assert.equal(p.status,'not_configured');assert.equal(p.apr,null);}
   assert.ok(data.products.filter(p => p.platform === 'Bitget' && p.kind === 'loan').every(p => p.status === 'ok' && p.apr > 0));
 });
@@ -87,7 +87,7 @@ test('Cloudflare entry point ignores ExecutionContext and calls the real fetch i
       { BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' },
       { waitUntil() {}, passThroughOnException() {} });
     const data = await response.json();
-    assert.equal(calls, 5);
+    assert.equal(calls, 8);
     assert.ok(data.products.filter(p => p.platform === 'Binance').every(p => p.error === 'credentials_error'));
   } finally {
     globalThis.fetch = originalFetch;

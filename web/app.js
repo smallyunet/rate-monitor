@@ -16,6 +16,10 @@ const descriptors = [
   { id: 'bitget-loan-usdt', platform: 'Bitget', kind: 'loan', asset: 'USDT', name: 'Flexible Loan', collateral: 'BTC' },
   { id: 'bitget-earn-usdc', platform: 'Bitget', kind: 'earn', asset: 'USDC', name: 'Flexible Earn' },
   { id: 'bitget-earn-usdt', platform: 'Bitget', kind: 'earn', asset: 'USDT', name: 'Flexible Earn' },
+  ...['loan', 'earn'].flatMap(kind => ['USDC', 'USDT'].map(asset => ({
+    id: `okx-${kind}-${asset.toLowerCase()}`, platform: 'OKX', kind, asset,
+    name: kind === 'loan' ? 'Flexible Loan' : 'Flexible Earn', ...(kind === 'loan' ? { collateral: 'BTC' } : {}),
+  }))),
 ];
 const errors = {
   missing_credentials: 'Credentials not configured', invalid_data: 'Invalid platform response',
@@ -23,7 +27,7 @@ const errors = {
   network_error: 'Platform connection failed', upstream_error: 'Platform API unavailable',
   region_restricted: 'Service region restricted by platform', rate_limited: 'Rate limited; try again later',
   clock_error: 'Request timestamp rejected', credentials_error: 'API key, signature or permissions rejected',
-  service_error: 'Rate service unavailable',
+  service_error: 'Rate service unavailable', stale_data: 'Latest settled rate is stale',
 };
 const percent = value => typeof value === 'number' && Number.isFinite(value)
   ? `${(value * 100).toLocaleString('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 })}%` : '—';
@@ -51,7 +55,7 @@ const el = (tag, cls, text) => {
 };
 function logoLabel(name) {
   const label = el('span', 'logo-label');
-  if (!['Binance', 'Bitget', 'BTC', 'USDC', 'USDT'].includes(name)) { label.textContent = name; return label; }
+  if (!['OKX', 'Binance', 'Bitget', 'BTC', 'USDC', 'USDT'].includes(name)) { label.textContent = name; return label; }
   const icon = el('img', 'logo');
   icon.src = `./icons/${name === 'Binance' ? 'binance' : name.toLowerCase()}.svg`;
   icon.alt = '';
@@ -91,12 +95,13 @@ function renderEarn(p, apr, effective) {
   const defaultAmount = tiers ? defaultEarnAmount(tiers) : null;
   const selected = selectEarnAmount(p.id, amounts, accountAmounts, defaultAmount);
   input.value = selected.value;
-  const source = el('small', 'secondary amount-source', selected.source);
+  const source = el('small', 'secondary amount-source', selected.value === '' && selected.source === 'Tier default' ? 'Enter amount' : selected.source);
   const update = () => {
     const value = input.value === '' ? NaN : Number(input.value);
     const invalid = input.validity.badInput || (input.value !== '' && (!Number.isFinite(value) || value < 0));
     input.setAttribute('aria-invalid', String(invalid));
-    result.textContent = invalid ? 'Invalid amount' : tiers ? percent(effectiveApr(tiers, value)) : '—';
+    const weighted = tiers ? effectiveApr(tiers, value) : null;
+    result.textContent = invalid ? 'Invalid amount' : weighted === null ? '—' : percent(weighted * (1 - (p.serviceFeeRate || 0)));
   };
   input.addEventListener('input', () => {
     amounts.set(p.id, input.value);
@@ -105,6 +110,7 @@ function renderEarn(p, apr, effective) {
   });
   update();
   effective.replaceChildren(result, input, source);
+  if (p.serviceFeeRate) effective.append(el('small', 'secondary fee-note', `After ${percent(p.serviceFeeRate)} fee`));
 }
 function render(products) {
   latestProducts = products;
@@ -115,7 +121,8 @@ function render(products) {
     const offers = Array.isArray(original.offers) ? original.offers : [];
     const chosen = offers.find(offer => offer.productId === selectedOffers.get(original.id)) || offers[0];
     const p = chosen ? { ...original, ...chosen } : original;
-    const row = el('tr');
+    const row = el('tr', `rate-row ${p.kind}-row`);
+    row.dataset.platform = p.platform;
     const platform = el('td');
     platform.append(logoLabel(p.platform));
     const product = el('td', 'product', p.name);
@@ -140,14 +147,19 @@ function render(products) {
     pair.append(logoLabel(p.asset));
     assets.append(pair);
     const apr = el('td', p.kind === 'loan' ? 'apr' : 'tier-aprs', p.status === 'ok' && p.kind === 'loan' ? percent(p.apr) : '—');
+    if (p.rateNote && p.kind === 'loan' && p.status === 'ok') apr.append(el('small', 'secondary rate-note', p.rateNote));
     const effective = el('td', 'effective', '—');
-    if (p.kind === 'earn') renderEarn(p, apr, effective);
+    if (p.kind === 'earn') {
+      renderEarn(p, apr, effective);
+      if (p.status === 'ok' && p.rateNote) apr.append(el('small', 'secondary rate-note', p.rateNote));
+    }
     const updated = el('td', 'updated');
     if (p.status === 'ok') {
       const age = el('span');
       setUpdatedTime(age, p.fetchedAt);
       updated.append(age);
       updated.title = time(p.fetchedAt);
+      if (p.rateAt) updated.title += ` · Rate settled: ${time(p.rateAt)}`;
       if (p.kind === 'loan' && p.collateralEligible === false) updated.append(el('div', 'error', 'BTC unavailable'));
       if (p.kind === 'earn' && p.soldOut === true) updated.append(el('div', 'error', 'Sold out'));
       else if (p.kind === 'earn' && p.canPurchase === false) updated.append(el('div', 'error', 'Unavailable'));
