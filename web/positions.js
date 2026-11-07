@@ -1,3 +1,12 @@
+// Check decimal strings without converting tiny balances to floating-point zero.
+const positiveAmount = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && /[1-9]/.test(value);
+export function visiblePositions(section) {
+  if (!['ok', 'partial'].includes(section.status)) return [];
+  const records = section.rows.filter(row => ['amount', 'collateralAmount', 'debt', 'loan', 'interest'].some(key => positiveAmount(row[key])));
+  if (positiveAmount(section.estimatedValue)) records.unshift({ estimate: section.estimatedValue });
+  return records;
+}
+
 export function mountPositions({ el, logoLabel, onAccountChange }) {
   const content = document.querySelector('#positions-content');
   const status = document.querySelector('#positions-status');
@@ -25,11 +34,11 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
     head.append(heading); table.append(head);
     const body = el('tbody'); table.append(body);
     const coverage = el('div', 'note');
+    const failures = el('div', 'note error');
     for (const section of sections) {
       const successful = ['ok', 'partial'].includes(section.status);
-      const records = successful ? [...section.rows] : [];
-      if (successful && section.estimatedValue !== undefined) records.unshift({ estimate: section.estimatedValue });
-      if (!records.length) records.push({ empty: true });
+      const records = visiblePositions(section);
+      if (!successful) failures.append(el('div', '', `${section.platform} ${section.product}: ${section.status === 'not_configured' ? 'API key not configured' : `Unavailable · ${section.error || 'request failed'}${section.upstreamCode ? ` (${section.upstreamCode})` : ''}`}`));
       for (const r of records) {
         const row = el('tr'); row.setAttribute('role', 'row');
         cell(row, labels[0], logoLabel(section.platform));
@@ -43,10 +52,7 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
         cell(row, labels[2], assets);
         const details = el('div', 'position-values');
         if (r.estimate !== undefined) details.append(el('div', '', `≈ ${r.estimate} USDT`), el('small', 'secondary', 'Savings value · all subscriptions'));
-        else if (r.empty) {
-          details.textContent = successful ? (section.status === 'partial' ? 'No rows in covered range' : 'No positions') : section.status === 'not_configured' ? 'API key not configured' : `Unavailable · ${section.error || 'request failed'}${section.upstreamCode ? ` (${section.upstreamCode})` : ''}`;
-          if (!successful) details.classList.add('error');
-        } else if (r.collateral) {
+        else if (r.collateral) {
           details.append(el('div', '', `Collateral: ${quantity(r.collateralAmount, r.collateral)}`));
           details.append(el('div', '', `${r.debt == null ? 'Loan' : 'Debt incl. interest'}: ${quantity(r.debt ?? r.loan, r.asset)}`));
           if (r.interest != null) details.append(el('div', 'secondary', `Interest: ${quantity(r.interest, r.asset)}`));
@@ -59,10 +65,14 @@ export function mountPositions({ el, logoLabel, onAccountChange }) {
         if (section.fetchedAt) { updated.dataset.updatedAt = section.fetchedAt; updated.title = new Date(section.fetchedAt).toISOString(); }
         cell(row, labels[4], updated); body.append(row);
       }
-      if (section.status === 'partial') coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
+      if (section.status === 'partial' && (records.length || section.estimatedValue === undefined)) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
     }
     const wrap = el('div', 'table-wrap'); wrap.append(table);
-    content.replaceChildren(wrap, coverage, el('p', 'note', 'Collateral and Earn may overlap. Balances are not added together.'));
+    content.replaceChildren();
+    if (body.childElementCount) content.append(wrap, el('p', 'note', 'Collateral and Earn may overlap. Balances are not added together.'));
+    else if (!failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', 'No positions'));
+    if (failures.childElementCount) content.append(failures);
+    if (coverage.childElementCount) content.append(coverage);
     content.hidden = false;
   }
   async function load() {
