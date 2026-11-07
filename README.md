@@ -10,7 +10,7 @@
 
 GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名接口 + Bitget 官方公开市场接口。
 
-打开页面或手动刷新时获取数据。不运行定时采样，不存储账户或历史数据，不请求持仓、余额，不执行交易。GitHub Actions 仅检查代码、构建和部署 Pages。
+打开页面或手动刷新时获取数据。不运行定时采样，不存储账户或历史数据，不执行交易。私人仓位通过独立的 Cloudflare Access 路径按需读取。GitHub Actions 仅检查代码、构建和部署 Pages。
 
 ## 配置密钥
 
@@ -52,17 +52,19 @@ GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名接口 +
 
 ## 本地检查与部署
 
-Node.js 20+，无运行依赖。以下命令不会启动浏览器：
+Node.js 20+，无运行依赖；开发构建使用 esbuild。以下命令不会启动浏览器：
 
 ```sh
+npm ci
 npm run check
 npm test
 npm run build
+npm run build:worker
 ```
 
 `web/` 为网页源文件，`dist/` 为构建产物。推送 `main` 后，GitHub Actions 自动发布 Pages。
 
-Worker 的源代码是 `worker/index.js`（单文件 ES module）。可在 Cloudflare 的 Edit code 中替换后 Deploy，或在已登录的 Wrangler 环境执行 `npx wrangler deploy`。`wrangler.jsonc` 保留了服务名与允许的前端 Origin。Worker 当前不通过 Actions 自动部署，修改 Worker 后需单独部署。
+Worker 入口为 `worker/index.js`，包含私人仓位与身份验证模块。运行 `npm run build:worker` 后，将 `build/worker.js` 的完整内容粘贴到 Cloudflare 的 Edit code 并 Deploy，或在已登录的 Wrangler 环境执行 `npx wrangler deploy`。`wrangler.jsonc` 保留了服务名与允许的前端 Origin。Worker 当前不通过 Actions 自动部署，修改 Worker 后需单独部署。
 
 ## API 与扩展
 
@@ -79,3 +81,21 @@ Worker 的源代码是 `worker/index.js`（单文件 ES module）。可在 Cloud
 `web/icons/` 中 Binance（BNB 标志）、BTC、USDT、USDC SVG 来自 [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons)，随仓库保存许可文件 `web/icons/LICENSE.md`。页面使用本地图标，不依赖第三方图片请求。
 
 Bitget 图标来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Logo_Bitget.svg)，源自 Bitget 官方品牌 SVG；仅裁切视图保留独立标志，形状与颜色不变。该文件在 Commons 标注为 PD-textlogo，商标归原品牌所有。
+
+## 私人仓位
+
+公共页面的 My Positions 链接进入 Worker `/private/`，该路径与 `/private/api/positions` 由 Cloudflare Access 邮箱登录保护。应用策略仅允许指定的单个邮箱。Worker 另外验证 Access JWT 的 RSA 签名、issuer、AUD、有效期和邮箱；未配置或验证失败时不访问平台接口。私人响应不启用 CORS，使用 `private, no-store`，无账户数据日志和本地存储。
+
+Worker 文本变量：`ACCESS_TEAM_DOMAIN`（完整 https URL）、`ACCESS_AUD`（Access 应用的 Audience）、`POSITIONS_EMAIL`（唯一允许邮箱）。这些值通过控制台配置，不把邮箱写入公共仓库。Wrangler 部署需保留控制台变量，避免覆盖认证配置；缺失配置会安全拒绝所有私人请求。
+
+Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PASSPHRASE`。浏览器不接触密钥或签名。
+
+- Binance Flexible Loan：`GET /sapi/v2/loan/flexible/ongoing/orders`，抵押数量及含利息的 `totalDebt`。
+- Binance Simple Earn：`GET /sapi/v1/simple-earn/flexible/position` 和 `/sapi/v1/simple-earn/locked/position`，活期/定期余额分别展示。活期的 `collateralAmount` 可能与借贷抵押重叠，因此不合计为总资产。最多读取 20 页，超过上限或总数变化显示 Partial results。
+- Bitget Loan：`GET /api/v3/loan/borrow-ongoing`，抵押数量、借款金额和利息分列；不把本金字段误标成含息总债务。
+- Bitget Earn：`GET /api/v2/earn/account/assets`，按币种实际余额；不用折算成 USDT 的账户估值冒充 USDT 持仓，也不依赖仅覆盖近期订单的 savings 列表。
+- 查询失败为 Unavailable；成功且无数据为 No positions；未配置密钥单独显示。余额保留平台十进制字符串精度。
+- Bitget Worker 出口曾返回 HTTP 403。私人请求不能采用公开利率的浏览器回退，遇到限制会显示 `upstream_forbidden`，需解决平台允许的后端出口。
+- 只在打开仓位页或 Refresh 时请求，不定时采样。页面离开时清空 DOM 中的账户值；返回页面重新读取。
+
+官方文档：[Bitget Earn Account](https://www.bitget.com/docs/catalog/earn-classic-account/classic-earn-account#earn-account-assets)、[Bitget Crypto Loans](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。

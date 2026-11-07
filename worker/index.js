@@ -1,4 +1,5 @@
-// Deliberately self-contained: deploy this file with Wrangler or the dashboard editor.
+import { handlePrivate } from './private-positions.js';
+// Bundle with npm run build:worker before using the dashboard editor.
 const PRODUCTS = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', collateral: 'BTC', name: 'Flexible Loan' },
   { id: 'binance-loan-usdt', platform: 'Binance', kind: 'loan', asset: 'USDT', collateral: 'BTC', name: 'Flexible Loan' },
@@ -57,7 +58,7 @@ async function signedGet(path, params, env, fetcher) {
   let response;
   try {
     response = await fetcher(`${API}${path}?${query}&signature=${await signature(query, env.BINANCE_API_SECRET)}`, {
-      headers: { 'X-MBX-APIKEY': env.BINANCE_API_KEY }, signal: AbortSignal.timeout(12000),
+      redirect: 'manual', headers: { 'X-MBX-APIKEY': env.BINANCE_API_KEY }, signal: AbortSignal.timeout(12000),
     });
   } catch { throw new Error('network_error'); }
   const failure = (kind, code) => {
@@ -148,6 +149,10 @@ export async function collectBinance(env, fetcher = fetch) {
   return Promise.all(tasks);
 }
 export async function handle(request, env, fetcher = fetch) {
+  const pathname = new URL(request.url).pathname;
+  if (pathname === '/private' || pathname.startsWith('/private/')) {
+    return handlePrivate(request, env, fetcher, (path, params) => signedGet(path, params, env, fetcher));
+  }
   const origin = request.headers.get('Origin');
   const allowed = env.ALLOWED_ORIGIN || 'https://smallyunet.github.io';
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Vary': 'Origin', 'X-Content-Type-Options': 'nosniff' };
