@@ -35,7 +35,11 @@ function render(products) {
     apr.append(el('div', 'apr', p.status === 'ok' ? percent(p.apr) : '—'));
     apr.append(el('div', 'secondary', p.kind === 'loan' ? 'Published reference' : 'Base real-time APR'));
     const info = el('td', 'details');
-    if (p.status !== 'ok') detail(info, errors[p.error] || 'Fetching…');
+    if (p.status !== 'ok') {
+      detail(info, errors[p.error] || 'Fetching…');
+      if (Number.isInteger(p.upstreamStatus)) detail(info, `Platform HTTP status: ${p.upstreamStatus}`);
+      if (Number.isFinite(p.upstreamCode)) detail(info, `Platform error code: ${p.upstreamCode}`);
+    }
     else if (p.kind === 'loan') {
       detail(info, `Current raw rate: ${p.rawRate} (time unit unverified)`);
       detail(info, `APR record: ${time(p.rateTime)}`);

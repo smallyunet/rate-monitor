@@ -4,7 +4,8 @@ const PRODUCTS = [
   { id: 'binance-earn-usdc', platform: 'Binance', kind: 'earn', asset: 'USDC', name: 'Simple Earn · Flexible' },
   { id: 'binance-earn-usdt', platform: 'Binance', kind: 'earn', asset: 'USDT', name: 'Simple Earn · Flexible' },
 ];
-const API = 'https://api.binance.com';
+// Official Binance GCP endpoint; the main host rejects this Worker's public probes with HTTP 403.
+const API = 'https://api-gcp.binance.com';
 export function rate(value) {
   if (typeof value !== 'string' && typeof value !== 'number') throw new Error('invalid_data');
   if (String(value).trim() === '') throw new Error('invalid_data');
@@ -57,15 +58,20 @@ async function signedGet(path, params, env, fetcher) {
       headers: { 'X-MBX-APIKEY': env.BINANCE_API_KEY }, signal: AbortSignal.timeout(12000),
     });
   } catch { throw new Error('network_error'); }
+  const failure = (kind, code) => {
+    return Object.assign(new Error(kind), { upstreamStatus: response.status,
+      upstreamCode: typeof code === 'number' && Number.isFinite(code) ? code : undefined });
+  };
+  // Region/rate-limit responses may be HTML rather than JSON.
+  if (response.status === 451) throw failure('region_restricted');
+  if ([418, 429].includes(response.status)) throw failure('rate_limited');
   let data;
-  try { data = await response.json(); } catch { throw new Error('upstream_error'); }
+  try { data = await response.json(); } catch { throw failure('upstream_error'); }
   if (!response.ok || (typeof data.code === 'number' && data.code < 0)) {
     // Never return upstream messages, signed URLs, credentials or account data.
-    if (response.status === 451) throw new Error('region_restricted');
-    if ([418, 429].includes(response.status)) throw new Error('rate_limited');
-    if (data.code === -1021) throw new Error('clock_error');
-    if ([-2014, -2015, -1022].includes(data.code)) throw new Error('credentials_error');
-    throw new Error('upstream_error');
+    if (data.code === -1021) throw failure('clock_error', data.code);
+    if ([-2014, -2015, -1022].includes(data.code)) throw failure('credentials_error', data.code);
+    throw failure('upstream_error', data.code);
   }
   return data;
 }
@@ -97,7 +103,10 @@ export async function collectBinance(env, fetcher = fetch) {
       }
       return { ...product, ...value, status: 'ok', fetchedAt: new Date().toISOString() };
     } catch (error) {
-      return { ...product, status: 'error', apr: null, error: SAFE_ERRORS.has(error.message) ? error.message : 'upstream_error' };
+      return { ...product, status: 'error', apr: null, error: SAFE_ERRORS.has(error.message) ? error.message : 'upstream_error',
+        ...(Number.isInteger(error.upstreamStatus) ? { upstreamStatus: error.upstreamStatus } : {}),
+        ...(Number.isFinite(error.upstreamCode) ? { upstreamCode: error.upstreamCode } : {}),
+      };
     }
   });
   return Promise.all(tasks);
@@ -114,6 +123,17 @@ export async function handle(request, env, fetcher = fetch) {
   }
   if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
   const path = new URL(request.url).pathname;
+  if (path === '/health' && new URL(request.url).searchParams.get('check') === 'binance') {
+    // Fixed, unsigned public probes: never transmit API credentials for diagnostics.
+    const connectivity = await Promise.all(['https://api.binance.com', API].map(async base => {
+      try {
+        const response = await fetcher(`${base}/api/v3/time`, { signal: AbortSignal.timeout(10000) });
+        await response.body?.cancel();
+        return { host: new URL(base).hostname, status: response.status };
+      } catch { return { host: new URL(base).hostname, error: 'network_error' }; }
+    }));
+    return json({ connectivity });
+  }
   if (path === '/health' || path === '/') return json({ service: 'rate-monitor', version: 1, configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET) });
   if (path !== '/api/rates') return json({ error: 'not_found' }, 404);
   const products = await collectBinance(env, fetcher);

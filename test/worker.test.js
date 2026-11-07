@@ -51,15 +51,24 @@ test('partial failures stay isolated, signed calls only use allowlisted read end
   const calls=[];
   const products=await collectBinance({BINANCE_API_KEY:'private-key',BINANCE_API_SECRET:'private-secret'},async(url,options)=>{
     const u=new URL(url);calls.push(u);
-    assert.equal(u.origin,'https://api.binance.com');assert.equal(options.headers['X-MBX-APIKEY'],'private-key');
+    assert.equal(u.origin,'https://api-gcp.binance.com');assert.equal(options.headers['X-MBX-APIKEY'],'private-key');
     assert.equal(u.searchParams.get('signature').length,64);
     if(u.searchParams.get('asset')==='USDT')return Response.json({rows:[{asset:'USDT',latestAnnualPercentageRate:'0',tierAnnualPercentageRate:{}}]});
     return Response.json({code:-2015,msg:'private-key private-secret account information'},{status:401});
   });
   assert.equal(products.find(p=>p.asset==='USDT').apr,0);
   assert.equal(products.filter(p=>p.status==='error').length,2);
+  for (const p of products.filter(p => p.status === 'error')) {
+    assert.equal(p.upstreamStatus, 401);
+    assert.equal(p.upstreamCode, -2015);
+  }
   assert.equal(JSON.stringify(products).includes('private-'),false);
   assert.equal(calls.length,3);
+});
+test('HTML region restrictions preserve the HTTP status instead of becoming unknown upstream errors', async () => {
+  const products = await collectBinance({ BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' },
+    async () => new Response('<html>Restricted</html>', { status: 451 }));
+  assert.ok(products.every(p => p.error === 'region_restricted' && p.upstreamStatus === 451));
 });
 test('Cloudflare entry point ignores ExecutionContext and calls the real fetch implementation', async () => {
   const originalFetch = globalThis.fetch;
@@ -78,4 +87,18 @@ test('Cloudflare entry point ignores ExecutionContext and calls the real fetch i
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+test('connectivity probes use fixed public endpoints without credentials', async () => {
+  const calls = [];
+  const response = await handle(new Request('https://test/health?check=binance'),
+    { BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' }, async (url, options) => {
+      calls.push(url);
+      assert.equal(options.headers, undefined);
+      assert.equal(new URL(url).search, '');
+      return Response.json({}, { status: url.includes('api-gcp') ? 200 : 403 });
+    });
+  assert.equal(calls.length, 2);
+  assert.deepEqual((await response.json()).connectivity, [
+    { host: 'api.binance.com', status: 403 }, { host: 'api-gcp.binance.com', status: 200 },
+  ]);
 });
