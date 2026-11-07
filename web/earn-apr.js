@@ -29,3 +29,8 @@ export function effectiveApr(tiers, amount) {
     return total + (covered / amount) * tier.apr;
   }, 0);
 }
+export function defaultEarnAmount(tiers) {
+  const bound = tiers.reduce((max, tier) => Number.isFinite(tier.to) ? Math.max(max, tier.to) : max, 0);
+  const amount = bound * 2;
+  return amount > 0 && Number.isFinite(amount) ? amount : null;
+}

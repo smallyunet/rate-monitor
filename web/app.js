@@ -1,4 +1,4 @@
-import { earnTiers, effectiveApr } from './earn-apr.js';
+import { earnTiers, effectiveApr, defaultEarnAmount } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
 const amounts = new Map();
 const ENDPOINT = 'https://rate-monitor-api.smallyu.workers.dev/api/rates';
@@ -80,15 +80,18 @@ function renderEarn(p, apr, effective) {
   input.placeholder = `Amount (${p.asset})`;
   input.setAttribute('aria-label', `${p.asset} deposit amount`);
   result.setAttribute('for', input.id);
-  input.value = amounts.get(p.id) || '';
+  const defaultAmount = tiers ? defaultEarnAmount(tiers) : null;
+  input.value = amounts.has(p.id) ? amounts.get(p.id) : defaultAmount === null ? '' : String(defaultAmount);
   const update = () => {
-    amounts.set(p.id, input.value);
     const value = input.value === '' ? NaN : Number(input.value);
     const invalid = input.validity.badInput || (input.value !== '' && (!Number.isFinite(value) || value <= 0));
     input.setAttribute('aria-invalid', String(invalid));
     result.textContent = invalid ? 'Invalid amount' : tiers ? percent(effectiveApr(tiers, value)) : '—';
   };
-  input.addEventListener('input', update);
+  input.addEventListener('input', () => {
+    amounts.set(p.id, input.value);
+    update();
+  });
   update();
   effective.replaceChildren(result, input);
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { earnTiers, effectiveApr } from '../web/earn-apr.js';
+import { earnTiers, effectiveApr, defaultEarnAmount } from '../web/earn-apr.js';
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-12, `${actual} != ${expected}`);
 test('tier bonus is added only to the eligible portion, including the exact cap', () => {
   const tiers = earnTiers(.021717, [{ range: '0-10000USDC', bonusApr: .07 }], 'USDC');
@@ -27,4 +27,10 @@ test('missing or ambiguous bounds are not presented as a complete APR', () => {
 test('empty, zero, negative and non-finite deposits have no effective APR', () => {
   const tiers = earnTiers(.02, [], 'USDC');
   for (const amount of [null, '', '100', 0, -1, NaN, Infinity]) assert.equal(effectiveApr(tiers, amount), null);
+});
+test('default deposit is twice the highest bonus bound and absent when no finite bound exists', () => {
+  assert.equal(defaultEarnAmount(earnTiers(.02, [{ range: '0-10000USDC', bonusApr: .07 }], 'USDC')), 20000);
+  assert.equal(defaultEarnAmount(earnTiers(.03, [{ range: '0-1000USDT', bonusApr: .08 }], 'USDT')), 2000);
+  assert.equal(defaultEarnAmount(earnTiers(.02, [{ range: '0-100USDC', bonusApr: .07 }, { range: '100-500USDC', bonusApr: .03 }], 'USDC')), 1000);
+  assert.equal(defaultEarnAmount(earnTiers(.02, [], 'USDC')), null);
 });
