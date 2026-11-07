@@ -63,13 +63,14 @@ tbody tr:hover { background: var(--hover); }
 .position-amount { color: var(--apr); font-size: 13px; font-weight: 400; }
 .position-values { min-width: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 #positions-content .secondary { display: block; }
-#positions-content table { table-layout: fixed; font-size: 12px; }
+#positions-content table { table-layout: fixed; min-width: 720px; font-size: 12px; }
 #positions-content th, #positions-content td { padding: 11px 9px; overflow-wrap: anywhere; vertical-align: top; }
-#positions-content th:first-child { width: 76px; }
-#positions-content th:nth-child(2) { width: 92px; }
+#positions-content th:first-child { width: 100px; }
+#positions-content th:nth-child(2) { width: 144px; }
 #positions-content th:nth-child(3) { width: 150px; }
-#positions-content th:last-child { width: 62px; }
-#positions-content .logo-label { flex-wrap: wrap; }
+#positions-content th:last-child { width: 80px; }
+#positions-content .logo-label { flex-wrap: nowrap; white-space: nowrap; }
+#positions-content td[data-label="Product"], #positions-content td[data-label="Updated"] { white-space: nowrap; overflow-wrap: normal; }
 #positions-content .asset-pair { flex-wrap: nowrap; white-space: nowrap; }
 #positions-content th:first-child, #positions-content td:first-child { padding-left: 12px; }
 #positions-status:empty { display: none; }
@@ -86,6 +87,7 @@ tbody tr:hover { background: var(--hover); }
   .panel-actions { gap: 7px; }
   .panel-actions .updated { display: none; }
   .table-wrap { overflow: visible; }
+  #positions-content table { min-width: 0; }
   table, tbody { display: block; }
   thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; padding: 10px; border-top: 1px solid var(--line); }
