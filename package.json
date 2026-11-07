@@ -1,0 +1,11 @@
+{
+  "name": "rate-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check worker/index.js && node --check web/app.js",
+    "build": "node scripts/build.js"
+  }
+}
