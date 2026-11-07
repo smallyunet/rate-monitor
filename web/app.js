@@ -1,7 +1,11 @@
+import { accountEarnAmounts, selectEarnAmount } from './account-amounts.js';
+import { mountPositions } from './positions.js';
 import { earnTiers, effectiveApr, defaultEarnAmount } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
 const amounts = new Map();
-const ENDPOINT = 'https://rate-monitor-api.smallyu.workers.dev/api/rates';
+let accountAmounts = new Map();
+let latestProducts = [];
+const ENDPOINT = '/api/rates';
 const descriptors = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
   { id: 'binance-loan-usdt', platform: 'Binance', kind: 'loan', asset: 'USDT', name: 'Flexible Loan', collateral: 'BTC' },
@@ -44,6 +48,7 @@ const el = (tag, cls, text) => {
 };
 function logoLabel(name) {
   const label = el('span', 'logo-label');
+  if (!['Binance', 'Bitget', 'BTC', 'USDC', 'USDT'].includes(name)) { label.textContent = name; return label; }
   const icon = el('img', 'logo');
   icon.src = `./icons/${name === 'Binance' ? 'binance' : name.toLowerCase()}.svg`;
   icon.alt = '';
@@ -81,21 +86,25 @@ function renderEarn(p, apr, effective) {
   input.setAttribute('aria-label', `${p.asset} deposit amount`);
   result.setAttribute('for', input.id);
   const defaultAmount = tiers ? defaultEarnAmount(tiers) : null;
-  input.value = amounts.has(p.id) ? amounts.get(p.id) : defaultAmount === null ? '' : String(defaultAmount);
+  const selected = selectEarnAmount(p.id, amounts, accountAmounts, defaultAmount);
+  input.value = selected.value;
+  const source = el('small', 'secondary amount-source', selected.source);
   const update = () => {
     const value = input.value === '' ? NaN : Number(input.value);
-    const invalid = input.validity.badInput || (input.value !== '' && (!Number.isFinite(value) || value <= 0));
+    const invalid = input.validity.badInput || (input.value !== '' && (!Number.isFinite(value) || value < 0));
     input.setAttribute('aria-invalid', String(invalid));
     result.textContent = invalid ? 'Invalid amount' : tiers ? percent(effectiveApr(tiers, value)) : '—';
   };
   input.addEventListener('input', () => {
     amounts.set(p.id, input.value);
+    source.textContent = 'Custom amount';
     update();
   });
   update();
-  effective.replaceChildren(result, input);
+  effective.replaceChildren(result, input, source);
 }
 function render(products) {
+  latestProducts = products;
   const rows = document.querySelector('#rows');
   rows.replaceChildren();
   document.querySelector('#config').hidden = !products.some(p => p.status === 'not_configured');
@@ -192,3 +201,9 @@ setInterval(() => {
   }
 }, 1000);
 refresh();
+
+mountPositions({ el, logoLabel, onAccountChange(sections, forgetManual = false) {
+  accountAmounts = sections ? accountEarnAmounts(sections) : new Map();
+  if (forgetManual) amounts.clear();
+  if (latestProducts.length) render(latestProducts);
+} });

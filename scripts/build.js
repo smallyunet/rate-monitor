@@ -7,7 +7,7 @@ await cp(new URL('../web/', import.meta.url), new URL('../dist/', import.meta.ur
 const directory = new URL('../dist/', import.meta.url);
 const appPath = new URL('app.js', directory);
 let app = await readFile(appPath, 'utf8');
-for (const module of ['earn-apr', 'bitget']) {
+for (const module of ['earn-apr', 'bitget', 'account-amounts', 'positions']) {
   const moduleContent = await readFile(new URL(`${module}.js`, directory));
   const hash = createHash('sha256').update(moduleContent).digest('hex').slice(0, 12);
   const moduleName = `${module}.${hash}.js`;
@@ -25,3 +25,7 @@ for (const name of ['app.js', 'style.css']) {
 }
 await writeFile(new URL('index.html', directory), html);
 console.log('Static site built in dist/');
+
+// GitHub Pages remains the original entry point. The application itself is same-origin
+// with Access, avoiding cross-site authentication cookies and cross-origin account data.
+await writeFile(new URL('index.html', directory), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="refresh" content="0;url=https://rate-monitor-api.smallyu.workers.dev/"><title>Rate Monitor</title><link rel="canonical" href="https://rate-monitor-api.smallyu.workers.dev/"></head><body><a href="https://rate-monitor-api.smallyu.workers.dev/">Open Rate Monitor</a></body></html>`);

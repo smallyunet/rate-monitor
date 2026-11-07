@@ -1,3 +1,4 @@
+import { servePublicSite } from './public-site.js';
 import { handlePrivate } from './private-positions.js';
 // Bundle with npm run build:worker before using the dashboard editor.
 const PRODUCTS = [
@@ -153,6 +154,8 @@ export async function handle(request, env, fetcher = fetch) {
   if (pathname === '/private' || pathname.startsWith('/private/')) {
     return handlePrivate(request, env, fetcher, (path, params) => signedGet(path, params, env, fetcher));
   }
+  const site = servePublicSite(request);
+  if (site) return site;
   const origin = request.headers.get('Origin');
   const allowed = env.ALLOWED_ORIGIN || 'https://smallyunet.github.io';
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Vary': 'Origin', 'X-Content-Type-Options': 'nosniff' };
@@ -175,7 +178,7 @@ export async function handle(request, env, fetcher = fetch) {
     }));
     return json({ connectivity });
   }
-  if (path === '/health' || path === '/') return json({ service: 'rate-monitor', version: 1, configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET) });
+  if (path === '/health') return json({ service: 'rate-monitor', version: 1, configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET) });
   if (path !== '/api/rates') return json({ error: 'not_found' }, 404);
   const products = (await Promise.all([collectBinance(env, fetcher), collectBitget(fetcher)])).flat();
   return json({ requestedAt: new Date().toISOString(), mode: 'on-demand', products });

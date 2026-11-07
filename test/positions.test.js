@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import { verifyPositionsIdentity } from '../worker/access-auth.js';
 import { handle } from '../worker/index.js';
 import { decimal, binanceLoans, binanceEarn, bitgetLoans, bitgetSavings, paginatedBinance, collectPositions, bitgetGet } from '../worker/private-positions.js';
-import { script } from '../worker/positions-page.js';
-import vm from 'node:vm';
 const env={ACCESS_TEAM_DOMAIN:'https://positions-test.cloudflareaccess.com',ACCESS_AUD:'positions',POSITIONS_EMAIL:'owner@example.com'};
 const pair=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
 const jwk={...await crypto.subtle.exportKey('jwk',pair.publicKey),kid:'test'};
@@ -50,7 +48,6 @@ test('Bitget signed GET uses a base64 HMAC and refuses redirects',async()=>{
   return Response.json({code:'00000',data:[]});
  });
 });
-test('private browser script parses',()=>{new vm.Script(script);});
 
 test('server relay checks identity before credentials and never forwards JWT to Bitget',async()=>{
  const {relay}=await import('../server/relay.js');
@@ -79,4 +76,12 @@ test('Savings separates complete estimated value from recent per-coin holdings',
   return Response.json({code:'00000',data:{resultList:period==='flexible'?[{productCoin:'USDC',holdAmount:'100.0001',status:'in_holding'}]:[]}});
  });
  assert.equal(data.estimatedValue,'123.456');assert.equal(data.rows[0].asset,'USDC');assert.equal(data.rows[0].amount,'100.0001');assert.equal(data.partial,true);assert.match(data.coverage,/3 months/);
+});
+
+test('authenticated login landing returns to the public rates page without requesting balances',async()=>{
+ const jwt=await token();
+ for(const path of ['/private/','/private','/private/*']){
+  const response=await handle(new Request('https://example.com'+path,{headers:{'Cf-Access-Jwt-Assertion':jwt}}),env,certs);
+  assert.equal(response.status,302);assert.equal(response.headers.get('Location'),'/#positions');assert.match(response.headers.get('Cache-Control'),/private, no-store/);
+ }
 });

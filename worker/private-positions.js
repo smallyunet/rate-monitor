@@ -1,5 +1,4 @@
 import { verifyPositionsIdentity } from './access-auth.js';
-import { page, style, script } from './positions-page.js';
 
 export function decimal(value) {
   if (typeof value !== 'string' || !/^\d+(?:\.\d+)?$/.test(value)) throw new Error('invalid_data');
@@ -141,10 +140,7 @@ export async function handlePrivate(request, env, fetcher, binanceGet) {
   catch (error) { return json({ error: ['access_not_configured','access_unavailable'].includes(error.message) ? error.message : 'unauthorized' }, error.message === 'unauthorized' ? 401 : 503); }
   if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
   const path = new URL(request.url).pathname;
-  if (path === '/private' || path === '/private/*') return new Response(null, { status: 302, headers: { ...headers, Location: '/private/' } });
+  if (['/private', '/private/', '/private/*'].includes(path)) return new Response(null, { status: 302, headers: { ...headers, Location: '/#positions' } });
   if (path === '/private/api/positions') return json(await collectPositions({ ...env, positionsJwt: request.headers.get('Cf-Access-Jwt-Assertion') }, fetcher, binanceGet));
-  const resources = { '/private/': [page, 'text/html'], '/private/app.js': [script, 'text/javascript'], '/private/style.css': [style, 'text/css'] };
-  if (!resources[path]) return json({ error: 'not_found' }, 404);
-  const [body, type] = resources[path];
-  return new Response(body, { headers: { ...headers, 'Content-Type': type + '; charset=utf-8' } });
+  return json({ error: 'not_found' }, 404);
 }

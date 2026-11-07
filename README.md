@@ -62,7 +62,7 @@ npm run build
 npm run build:worker
 ```
 
-`web/` 为网页源文件，`dist/` 为构建产物。推送 `main` 后，GitHub Actions 自动发布 Pages。
+`web/` 为统一网页源文件，`dist/` 为 Pages 跳转入口的构建产物。推送 `main` 后，GitHub Actions 自动发布 Pages。Worker bundle 同时包含公开静态页面和接口，需单独部署。
 
 Worker 入口为 `worker/index.js`，包含私人仓位与身份验证模块。运行 `npm run build:worker` 后，将 `build/worker.js` 的完整内容粘贴到 Cloudflare 的 Edit code 并 Deploy，或在已登录的 Wrangler 环境执行 `npx wrangler deploy`。`wrangler.jsonc` 保留了服务名与允许的前端 Origin。Worker 当前不通过 Actions 自动部署，修改 Worker 后需单独部署。
 
@@ -84,7 +84,7 @@ Bitget 图标来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:
 
 ## 私人仓位
 
-公共页面的 My Positions 链接进入 Worker `/private/`，该路径与 `/private/api/positions` 由 Cloudflare Access 邮箱登录保护。应用策略仅允许指定的单个邮箱。Worker 另外验证 Access JWT 的 RSA 签名、issuer、AUD、有效期和邮箱；未配置或验证失败时不访问平台接口。私人响应不启用 CORS，使用 `private, no-store`，无账户数据日志和本地存储。
+公共页面的 Sign in 链接进入 Worker `/private/`，登录成功返回同页的 My Positions 区域；`/private/` 与 `/private/api/positions` 由 Cloudflare Access 邮箱登录保护。应用策略仅允许指定的单个邮箱。Worker 另外验证 Access JWT 的 RSA 签名、issuer、AUD、有效期和邮箱；未配置或验证失败时不访问平台接口。私人响应不启用 CORS，使用 `private, no-store`，无账户数据日志和本地存储。
 
 Worker 文本变量：`ACCESS_TEAM_DOMAIN`（完整 https URL）、`ACCESS_AUD`（Access 应用的 Audience）、`POSITIONS_EMAIL`（唯一允许邮箱）。这些值通过控制台配置，不把邮箱写入公共仓库。Wrangler 部署需保留控制台变量，避免覆盖认证配置；缺失配置会安全拒绝所有私人请求。
 
@@ -107,3 +107,11 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 转发服务校验同一 Access JWT 签名、AUD、issuer、邮箱及过期时间，且仅允许借贷、Savings 总览、Savings 明细这三个 Bitget GET 路径；明细 query 只允许 flexible/fixed、固定 limit=100 和数字 cursor，不接受任意上游或交易接口。平台签名由 Worker 生成；服务器临时转发 API key、签名与 passphrase，但不持久保存这些值或 Bitget API secret，且不把 Access JWT 转发到交易所。使用 HTTPS、禁用缓存和重定向、限制返回体大小和请求频率。服务器环境文件仅包含 Access 配置和允许邮箱，权限 600，不纳入仓库。
 
 部署时复制 `server/relay.js`、`server/compose.yml`、`worker/access-auth.js`（服务器文件名 access-auth.js）到服务器目录，并配置 relay.env，然后 `docker compose up -d`。更新 worker/access-auth.js 时须同步服务器文件。`server/install-route.py` 是现有 ssh c Caddy 入口的幂等配置脚本，会先保存原配置。
+
+## 同页 Rates / Positions
+
+应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在上，My Positions 在下。原 GitHub Pages 地址保留为自动跳转入口。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
+
+未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM、实际余额默认值和自定义金额，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
+
+Rates 的 Effective APR 金额优先级：手动输入 > 已认证的 Binance Flexible Earn 完整成功快照中的实际余额 > 档位上限两倍。零余额保持 0，零金额不计算 APR；失败/缺失/partial 不能当作实际余额。借贷抵押与 Earn 不合计，Bitget Savings 估值不冒充 Binance Earn 数量。两个区域独立手动刷新，无定时采样。

@@ -1,6 +1,7 @@
 {
   "name": "rate-monitor-api",
-  "main": "worker/index.js",
+  "main": "build/worker.js",
+  "build": { "command": "npm run build:worker" },
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
   "vars": { "ALLOWED_ORIGIN": "https://smallyunet.github.io" }
