@@ -119,4 +119,6 @@ export async function handle(request, env, fetcher = fetch) {
   const products = await collectBinance(env, fetcher);
   return json({ requestedAt: new Date().toISOString(), mode: 'on-demand', products });
 }
-export default { fetch: handle };
+// Cloudflare passes ExecutionContext as argument three, not a fetch implementation.
+// Keep the injectable fetcher on handle() for tests, outside the runtime entry point.
+export default { fetch(request, env) { return handle(request, env); } };

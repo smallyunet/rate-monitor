@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac, webcrypto } from 'node:crypto';
-import { handle, normalizeEarn, normalizeLoan, rate, signature, collectBinance } from '../worker/index.js';
+import worker, { handle, normalizeEarn, normalizeLoan, rate, signature, collectBinance } from '../worker/index.js';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 test('HMAC matches standard SHA256 signing', async () => {
   const query = 'asset=USDC&timestamp=1234';
@@ -60,4 +60,22 @@ test('partial failures stay isolated, signed calls only use allowlisted read end
   assert.equal(products.filter(p=>p.status==='error').length,2);
   assert.equal(JSON.stringify(products).includes('private-'),false);
   assert.equal(calls.length,3);
+});
+test('Cloudflare entry point ignores ExecutionContext and calls the real fetch implementation', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return Response.json({ code: -2015 }, { status: 401 });
+  };
+  try {
+    const response = await worker.fetch(new Request('https://test/api/rates'),
+      { BINANCE_API_KEY: 'test-key', BINANCE_API_SECRET: 'test-secret' },
+      { waitUntil() {}, passThroughOnException() {} });
+    const data = await response.json();
+    assert.equal(calls, 3);
+    assert.ok(data.products.every(p => p.error === 'credentials_error'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
