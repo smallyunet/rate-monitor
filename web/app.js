@@ -54,6 +54,15 @@ function render(products) {
       p.status === 'ok' ? 'Fetched' : p.status === 'error' ? 'Failed' : p.status === 'not_configured' ? 'Not configured' : 'Fetching…'));
     status.append(el('div', 'secondary', p.fetchedAt ? time(p.fetchedAt) : 'No valid data'));
     row.append(el('td', '', p.platform), product, el('td', '', p.asset), apr, info, status);
+    row.setAttribute('role', 'row');
+    const labels = ['Platform', 'Product', 'Asset', 'APR', 'Details', 'Status / fetched at'];
+    Array.from(row.children).forEach((cell, index) => {
+      cell.dataset.label = labels[index];
+      cell.setAttribute('role', 'cell');
+      const value = el('div', 'cell-value');
+      value.append(...cell.childNodes);
+      cell.append(value);
+    });
     rows.append(row);
   }
 }
