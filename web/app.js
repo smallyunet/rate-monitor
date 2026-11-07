@@ -22,6 +22,20 @@ const percent = value => typeof value === 'number' && Number.isFinite(value)
   ? `${(value * 100).toLocaleString('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 })}%` : '—';
 const time = value => value && Number.isFinite(Date.parse(value))
   ? new Date(value).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC') : '—';
+function relativeTime(value) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '—';
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+function setUpdatedTime(node, value) {
+  node.dataset.updatedAt = value || '';
+  node.title = time(value);
+  node.textContent = relativeTime(value);
+}
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -100,7 +114,9 @@ function render(products) {
     if (p.kind === 'earn') renderEarn(p, apr, effective);
     const updated = el('td', 'updated');
     if (p.status === 'ok') {
-      updated.textContent = time(p.fetchedAt).replace(/^\d{4}-\d{2}-\d{2} /, '');
+      const age = el('span');
+      setUpdatedTime(age, p.fetchedAt);
+      updated.append(age);
       updated.title = time(p.fetchedAt);
       if (p.kind === 'loan' && p.collateralEligible === false) updated.append(el('div', 'error', 'BTC unavailable'));
       if (p.kind === 'earn' && p.soldOut === true) updated.append(el('div', 'error', 'Sold out'));
@@ -131,6 +147,8 @@ async function refresh() {
   document.querySelector('#rates').setAttribute('aria-busy', 'true');
   document.querySelector('#status').textContent = 'Loading…';
   document.querySelector('#updated').textContent = '';
+  delete document.querySelector('#updated').dataset.updatedAt;
+  document.querySelector('#updated').removeAttribute('title');
   // Clear old quotes so a failed refresh cannot appear to be current.
   render(descriptors.map(p => ({ ...p, status: 'loading', apr: null })));
   try {
@@ -152,15 +170,22 @@ async function refresh() {
     document.querySelector('#status').textContent = products.every(p => p.status === 'not_configured')
       ? 'API key required'
       : `${ok} / ${products.length}`;
-    document.querySelector('#updated').textContent = time(data.requestedAt);
+    setUpdatedTime(document.querySelector('#updated'), data.requestedAt);
   } catch {
     render(descriptors.map(p => ({ ...p, status: 'error', apr: null, error: 'service_error' })));
     document.querySelector('#status').textContent = 'Connection failed';
-    document.querySelector('#updated').textContent = time(new Date().toISOString());
+    setUpdatedTime(document.querySelector('#updated'), new Date().toISOString());
   } finally {
     button.disabled = false;
     document.querySelector('#rates').setAttribute('aria-busy', 'false');
   }
 }
 document.querySelector('#refresh').addEventListener('click', refresh);
+// Advance the age labels locally; this does not fetch or refresh platform rates.
+setInterval(() => {
+  for (const node of document.querySelectorAll('[data-updated-at]')) {
+    const label = relativeTime(node.dataset.updatedAt);
+    if (node.textContent !== label) node.textContent = label;
+  }
+}, 1000);
 refresh();
