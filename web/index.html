@@ -10,17 +10,15 @@
 </head>
 <body>
   <main>
-    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1><span class="header-meta">DASHBOARD</span></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button">Refresh</button></nav></header>
+    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a></nav></header>
     <div class="dashboard">
     <section class="panel rates-panel" aria-labelledby="rates-title">
-    <div class="panel-heading"><h2 class="section-title" id="rates-title">Rates</h2><span class="panel-meta">LOAN / EARN</span></div>
-    <div class="statusbar" aria-live="polite"><span id="status">Loading…</span><span id="updated"></span></div>
+    <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="rates-title">Rates</h2><span id="status" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span id="updated" class="updated"></span><button id="refresh" type="button">Refresh</button></div></header>
     <div class="table-wrap"><table role="table" aria-label="Current rates" aria-busy="true" id="rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">Tier APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="rows"></tbody></table></div>
     <div id="config" class="notice" hidden>Binance API key required.</div>
     </section>
     <section class="panel positions-panel" id="positions" aria-labelledby="positions-title">
-      <header class="positions-header"><h2 id="positions-title">My Positions</h2><button id="positions-refresh" hidden type="button">Refresh</button></header>
-      <div class="statusbar" role="status"><span id="positions-status"></span></div>
+      <header class="positions-header"><div class="panel-title"><h2 id="positions-title">Positions</h2><span id="positions-status" class="status-badge" role="status"></span></div><button id="positions-refresh" hidden type="button">Refresh</button></header>
       <div id="positions-content" hidden></div>
     </section>
     </div>

@@ -128,7 +128,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 
 ## OKX 市场利率与深色看板
 
-桌面宽屏采用深色双栏：左侧 Rates，右侧 My Positions；1190px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
+桌面宽屏采用深色双栏：左侧 Rates，右侧 My Positions；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
 
 OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需密钥：
 
