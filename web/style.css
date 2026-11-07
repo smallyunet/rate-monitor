@@ -102,3 +102,13 @@ tbody tr:hover { background: var(--hover); }
 
 .position-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding: 11px 14px; border-top: 1px solid var(--line); background: #1e2329; }
 .position-summary-label { color: var(--muted); font-size: 11px; }
+
+/* One platform label spans its product rows in each desktop table. */
+.platform-repeat { display: none; }
+.platform-group { vertical-align: middle !important; background: #15191f; }
+.platform-group-start:not(:first-child) > td { border-top: 1px solid #454e5b; }
+@media (max-width: 680px) {
+  .platform-repeat { display: block; }
+  .platform-group { background: transparent; }
+  .platform-group-start:not(:first-child) > td { border-top: 0; }
+}

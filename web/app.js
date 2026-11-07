@@ -1,4 +1,4 @@
-import { mountPositions } from './positions.js';
+import { mountPositions, mergePlatformCells } from './positions.js';
 import { productEarnTiers } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
 const selectedOffers = new Map();
@@ -148,6 +148,7 @@ function render(products) {
     });
     bodies[p.kind].append(row);
   }
+  Object.values(bodies).forEach(mergePlatformCells);
   for (const kind of ['loan', 'earn']) {
     const list = products.filter(p => p.kind === kind);
     document.querySelector(`[data-rate-status="${kind}"]`).textContent = list.some(p => p.status === 'loading')

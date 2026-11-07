@@ -12,6 +12,22 @@ export function positionSummary(section) {
     ? section.estimatedValue : null;
 }
 
+// Merge adjacent platform cells on desktop. Repeated cells remain available for mobile cards.
+export function mergePlatformCells(body) {
+  const rows = Array.from(body.children);
+  for (let start = 0; start < rows.length;) {
+    let end = start + 1;
+    while (end < rows.length && rows[end].dataset.platform === rows[start].dataset.platform) end++;
+    const first = rows[start].children[0];
+    first.rowSpan = end - start;
+    first.setAttribute('aria-rowspan', String(end - start));
+    first.classList.add('platform-group');
+    rows[start].classList.add('platform-group-start');
+    for (let i = start + 1; i < end; i++) rows[i].children[0].classList.add('platform-repeat');
+    start = end;
+  }
+}
+
 export function mountPositions({ el, logoLabel }) {
   const content = document.querySelector('#positions-content');
   const status = document.querySelector('#positions-status');
@@ -58,7 +74,7 @@ export function mountPositions({ el, logoLabel }) {
       }
       if (!successful) failures.append(el('div', '', `${section.platform} ${section.product}: ${section.status === 'not_configured' ? 'API key not configured' : `Unavailable · ${section.error || 'request failed'}${section.upstreamCode ? ` (${section.upstreamCode})` : ''}`}`));
       for (const r of records) {
-        const row = el('tr'); row.setAttribute('role', 'row');
+        const row = el('tr'); row.setAttribute('role', 'row'); row.dataset.platform = section.platform;
         cell(row, labels[0], logoLabel(section.platform));
         cell(row, labels[1], r.product || section.product);
         const assets = el('div', 'asset-pair');
@@ -83,6 +99,7 @@ export function mountPositions({ el, logoLabel }) {
       }
       if (section.status === 'partial' && (records.length || total !== null || section.estimatedValue === undefined)) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
     }
+    mergePlatformCells(body);
     const wrap = el('div', 'table-wrap'); wrap.append(table);
     content.replaceChildren();
     if (body.childElementCount) content.append(wrap);
