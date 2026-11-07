@@ -17,6 +17,20 @@ test('Bitget Earn selects normal flexible products and uses total tier percentag
  const multiple=normalizeBitgetEarn([other,raw],'USDT');assert.equal(multiple.offers.length,2);assert.equal(multiple.productId,'other');assert.equal(multiple.offers[1].productId,'example');
  assert.throws(()=>normalizeBitgetEarn([raw,{...raw,apyList:other.apyList}],'USDT'),/ambiguous_product/);
 });
+test('Bitget chooses the complete highest-APR offer regardless of API order', () => {
+ const low = product();
+ const high = {...product(), productId:'high', apyList:[
+  {minStepVal:'0',maxStepVal:'300',currentApy:'11'},
+  {minStepVal:'300',maxStepVal:'1000000',currentApy:'1'},
+ ]};
+ const selected = normalizeBitgetEarn([low, high], 'USDT');
+ assert.equal(selected.productId, 'high');
+ assert.deepEqual(selected.rateTiers, [{from:0,to:300,apr:.11},{from:300,to:1000000,apr:.01}]);
+ assert.equal(normalizeBitgetEarn([low,{...high,status:'sold_out'}], 'USDT').productId, 'example');
+ assert.equal(normalizeBitgetEarn([low,{...low,productId:'tie'}], 'USDT').productId, 'example');
+ const laterPeak = {...high, apyList:[{...high.apyList[0],currentApy:'1'},{...high.apyList[1],currentApy:'12'}]};
+ assert.equal(normalizeBitgetEarn([low,laterPeak], 'USDT').productId, 'high');
+});
 test('Bitget missing, overlapping or incomplete tiers never become an invented APR',()=>{
  for(const apyList of [[],[{minStepVal:'0',maxStepVal:'100',currentApy:''}],[{minStepVal:'100',maxStepVal:'200',currentApy:'5'}],[{minStepVal:'0',maxStepVal:'100',currentApy:'5'},{minStepVal:'50',maxStepVal:'200',currentApy:'2'}]]) assert.throws(()=>normalizeBitgetEarn([{...product(),apyList}],'USDT'),/invalid_data/);
  assert.throws(()=>productEarnTiers({rateTiers:[{from:0,to:10,apr:.05},{from:20,to:30,apr:.02}]}),/invalid_tiers/);

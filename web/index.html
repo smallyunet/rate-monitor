@@ -23,10 +23,16 @@
     </section>
     <div id="config" class="notice" hidden>Binance API key required.</div>
     </div>
-    <section class="panel positions-panel" id="positions" aria-labelledby="positions-title">
-      <header class="positions-header"><div class="panel-title"><h2 id="positions-title">Positions</h2><span id="positions-status" class="status-badge" role="status"></span></div><button id="positions-refresh" hidden type="button">Refresh</button></header>
-      <div id="positions-content" hidden></div>
+    <div id="positions" class="positions-column">
+    <section class="panel positions-panel" aria-labelledby="loan-positions-title">
+      <header class="positions-header"><div class="panel-title"><h2 class="section-title" id="loan-positions-title">Loan Positions</h2><span data-position-status="loan" class="status-badge" role="status"></span></div><button data-positions-refresh hidden type="button">Refresh</button></header>
+      <div data-positions-content="loan" hidden></div>
     </section>
+    <section class="panel positions-panel" aria-labelledby="earn-positions-title">
+      <header class="positions-header"><div class="panel-title"><h2 class="section-title" id="earn-positions-title">Earn Positions</h2><span data-position-status="earn" class="status-badge" role="status"></span></div><button data-positions-refresh hidden type="button">Refresh</button></header>
+      <div data-positions-content="earn" hidden></div>
+    </section>
+    </div>
     </div>
   </main>
 </body>

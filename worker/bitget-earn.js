@@ -34,9 +34,10 @@ export function normalizeBitgetEarn(data, asset) {
     }
     seen.set(offer.productId, offer); offers.push(offer);
   }
-  // Preserve the platform's order. Multiple ordinary offers stay selectable instead
-  // of silently taking the highest advertised rate or merging unrelated bands.
-  return { ...offers[0], aprSource: 'realtime', offers };
+  // Choose one complete offer by its highest tier APR; preserve API order on ties.
+  const peak = offer => Math.max(...offer.rateTiers.map(tier => tier.apr));
+  const selected = offers.reduce((best, offer) => peak(offer) > peak(best) ? offer : best);
+  return { ...selected, aprSource: 'realtime', offers };
 
 }
 export async function collectBitgetEarn(env, fetcher = fetch) {

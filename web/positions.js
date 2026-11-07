@@ -12,6 +12,10 @@ export function positionSummary(section) {
     ? section.estimatedValue : null;
 }
 
+export function positionKind(section) {
+  return section.product === 'Flexible Loan' ? 'loan' : 'earn';
+}
+
 // Merge adjacent platform cells on desktop. Repeated cells remain available for mobile cards.
 export function mergePlatformCells(body) {
   const rows = Array.from(body.children);
@@ -29,17 +33,19 @@ export function mergePlatformCells(body) {
 }
 
 export function mountPositions({ el, logoLabel }) {
-  const content = document.querySelector('#positions-content');
-  const status = document.querySelector('#positions-status');
-  const refresh = document.querySelector('#positions-refresh');
+  const contents = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-positions-content="${kind}"]`)]));
+  const statuses = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-position-status="${kind}"]`)]));
+  const refreshes = Array.from(document.querySelectorAll('[data-positions-refresh]'));
+  const setStatus = text => Object.values(statuses).forEach(status => { status.textContent = text; });
+  const setRefreshing = disabled => refreshes.forEach(button => { button.disabled = disabled; });
   const signIn = document.querySelector('#sign-in');
   const signOut = document.querySelector('#sign-out');
   let controller, generation = 0, signingOut = false;
   const labels = ['Platform', 'Product', 'Assets', 'Position', 'Updated'];
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
   function clear() {
-    content.replaceChildren(); content.hidden = true;
-    refresh.hidden = true; signOut.hidden = true; signIn.hidden = false;
+    Object.values(contents).forEach(content => { content.replaceChildren(); content.hidden = true; });
+    refreshes.forEach(button => { button.hidden = true; }); signOut.hidden = true; signIn.hidden = false;
   }
   function cell(row, label, value) {
     const td = el('td'); td.dataset.label = label; td.setAttribute('role', 'cell');
@@ -53,8 +59,8 @@ export function mountPositions({ el, logoLabel }) {
     line.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
     return line;
   }
-  function render(sections) {
-    const table = el('table'); table.setAttribute('aria-label', 'My positions'); table.setAttribute('role', 'table');
+  function renderGroup(content, sections, kind) {
+    const table = el('table'); table.setAttribute('aria-label', `${kind === 'loan' ? 'Loan' : 'Earn'} positions`); table.setAttribute('role', 'table');
     const head = el('thead'); const heading = el('tr');
     for (const name of labels) { const th = el('th', '', name); th.scope = 'col'; heading.append(th); }
     head.append(heading); table.append(head);
@@ -109,36 +115,42 @@ export function mountPositions({ el, logoLabel }) {
     if (coverage.childElementCount) content.append(coverage);
     content.hidden = false;
   }
+  function render(sections) {
+    for (const kind of ['loan', 'earn']) {
+      const group = sections.filter(section => positionKind(section) === kind);
+      renderGroup(contents[kind], group, kind);
+      const ok = group.filter(section => ['ok', 'partial'].includes(section.status)).length;
+      statuses[kind].textContent = `${ok} / ${group.length}`;
+    }
+  }
   async function load() {
     if (signingOut) return;
     controller?.abort(); controller = new AbortController();
     const current = ++generation;
-    refresh.disabled = true; status.textContent = 'Loading…';
+    setRefreshing(true); setStatus('Loading…');
     try {
       const response = await fetch('/private/api/positions', { cache: 'no-store', redirect: 'manual', signal: controller.signal });
       if (current !== generation) return;
-      if (response.type === 'opaqueredirect' || [0, 401, 403].includes(response.status)) { clear(); status.textContent = ''; return; }
+      if (response.type === 'opaqueredirect' || [0, 401, 403].includes(response.status)) { clear(); setStatus(''); return; }
       if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error();
       const data = await response.json();
       if (current !== generation) return;
       if (!Array.isArray(data.sections) || data.sections.some(s => !Array.isArray(s.rows))) throw new Error();
       render(data.sections);
-      signIn.hidden = true; signOut.hidden = false; refresh.hidden = false;
-      const ok = data.sections.filter(s => ['ok', 'partial'].includes(s.status)).length;
-      status.textContent = `${ok} / ${data.sections.length}`;
+      signIn.hidden = true; signOut.hidden = false; refreshes.forEach(button => { button.hidden = false; });
     } catch (error) {
       if (current !== generation || error.name === 'AbortError') return;
-      clear(); status.textContent = 'Positions unavailable';
-    } finally { if (current === generation) refresh.disabled = false; }
+      clear(); setStatus('Positions unavailable');
+    } finally { if (current === generation) setRefreshing(false); }
   }
-  refresh.addEventListener('click', load);
+  refreshes.forEach(button => button.addEventListener('click', load));
   signOut.addEventListener('click', async () => {
-    signingOut = true; ++generation; controller?.abort(); clear(); status.textContent = 'Signing out…'; signIn.hidden = true;
+    signingOut = true; ++generation; controller?.abort(); clear(); setStatus('Signing out…'); signIn.hidden = true;
     try {
       const response = await fetch('/cdn-cgi/access/logout', { cache: 'no-store', redirect: 'manual' });
       if (response.status >= 400) throw new Error();
-      status.textContent = '';
-    } catch { status.textContent = 'Sign out failed. Reload and try again.'; }
+      setStatus('');
+    } catch { setStatus('Sign out failed. Reload and try again.'); }
     finally { signingOut = false; signIn.hidden = false; }
   });
   window.addEventListener('pagehide', () => { ++generation; controller?.abort(); clear(); });

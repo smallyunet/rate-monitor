@@ -104,3 +104,11 @@ test('Savings account estimate is a summary, never an additional holding', async
  const tiny={asset:'USDT',amount:'0.00000000000000000001'};
  assert.deepEqual(visiblePositions({...section,rows:[tiny]}),[tiny]);
 });
+
+ test('position groups keep loans separate from all Earn and Savings sections', async () => {
+  const { positionKind } = await import('../web/positions.js');
+  for (const platform of ['Binance', 'Bitget']) {
+   assert.equal(positionKind({platform, product:'Flexible Loan'}), 'loan');
+   for (const product of ['Flexible Earn','Locked Earn','Savings']) assert.equal(positionKind({platform,product}), 'earn');
+  }
+ });

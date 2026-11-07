@@ -1,8 +1,6 @@
 import { mountPositions, mergePlatformCells } from './positions.js';
 import { productEarnTiers } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
-const selectedOffers = new Map();
-let latestProducts = [];
 const ENDPOINT = '/api/rates';
 const descriptors = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
@@ -82,31 +80,15 @@ function renderEarn(p, apr) {
   }
 }
 function render(products) {
-  latestProducts = products;
   const bodies = { loan: document.querySelector('#loan-rows'), earn: document.querySelector('#earn-rows') };
   Object.values(bodies).forEach(body => body.replaceChildren());
   document.querySelector('#config').hidden = !products.some(p => p.platform === 'Binance' && p.status === 'not_configured');
-  for (const original of products) {
-    const offers = Array.isArray(original.offers) ? original.offers : [];
-    const chosen = offers.find(offer => offer.productId === selectedOffers.get(original.id)) || offers[0];
-    const p = chosen ? { ...original, ...chosen } : original;
+  for (const p of products) {
     const row = el('tr', `rate-row ${p.kind}-row`);
     row.dataset.platform = p.platform;
     const platform = el('td');
     platform.append(logoLabel(p.platform));
     const product = el('td', 'product', p.name);
-    if (offers.length > 1 && p.status === 'ok') {
-      const select = el('select', 'offer-select');
-      select.setAttribute('aria-label', `${p.platform} ${p.asset} flexible product`);
-      for (const offer of offers) {
-        const first = offer.rateTiers[0];
-        const option = el('option', '', `${tierLabel(first, p.asset)} · ${percent(first.apr)}`);
-        option.value = offer.productId; option.selected = offer.productId === p.productId;
-        select.append(option);
-      }
-      select.addEventListener('change', () => { selectedOffers.set(p.id, select.value); render(latestProducts); });
-      product.append(select);
-    }
     const assets = el('td', 'assets');
     const pair = el('div', 'asset-pair');
     if (p.kind === 'loan') {

@@ -110,7 +110,7 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 
 ## 同页 Rates / Positions
 
-应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，左侧上方为 Loan、下方为 Earn，右侧为 Positions，窄屏上下排列。GitHub Pages 已关闭，原地址不再提供跳转，请直接使用 Worker 地址。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
+应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，左侧上方为 Loan、下方为 Earn，右侧上方为 Loan Positions、下方为 Earn Positions，窄屏上下排列。GitHub Pages 已关闭，原地址不再提供跳转，请直接使用 Worker 地址。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
 
 未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
 
@@ -119,7 +119,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 ## Bitget Flexible Earn 利率
 
 - `GET /api/v3/earn/savings/product?coin=USDC|USDT&filter=available` 需要 Bitget 只读密钥签名，由 Worker 使用既有 Secrets 签名，经 ssh c 转发。此固定市场查询不依赖用户登录；所有仓位接口的 JWT 限制保持不变，密钥及签名不返回前端。
-- 仅选择 `periodType=flexible`、`productLevel=normal` 的普通用户产品，不用新用户、VIP、定期活动利率替代。存在多个普通活期方案时保留各自独立档位，并提供方案选择；默认按平台接口顺序，不自动挑最高收益，也不把不同方案的档位混在一起。
+- 仅选择 `periodType=flexible`、`productLevel=normal` 的普通用户产品，不用新用户、VIP、定期活动利率替代。存在多个普通活期方案时保留各自独立档位，按各方案最高档 APR 自动选择最高的一个（相同则保留接口顺序），完整展示该方案分档，不提供下拉框，也不把不同方案的档位混在一起。
 - `apyList.currentApy` 按百分数转成小数（6.00 → 0.06），每个档位为完整年化，不是叠加奖励。按 `minStepVal` / `maxStepVal` 展示分档。Bitget 官方 Savings 说明将收益口径称为 APR，按日计算利息，不将字段名直接当成复利 APY。
 - 有限的最后一档上限保留为覆盖边界；不推测覆盖范围之外的利率。
 - Bitget Savings 仓位明细只有近三个月创建范围，不能作为完整余额。
@@ -128,7 +128,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 
 ## OKX 市场利率与深色看板
 
-桌面宽屏采用深色双栏：左侧 Loan / Earn 上下两个列表，右侧 Positions；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
+桌面宽屏采用深色双栏：左侧 Loan / Earn 上下两个列表，右侧 Loan Positions / Earn Positions 上下两个列表；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
 
 OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需密钥：
 
