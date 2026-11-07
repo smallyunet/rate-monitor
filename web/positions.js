@@ -3,8 +3,13 @@ const positiveAmount = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.t
 export function visiblePositions(section) {
   if (!['ok', 'partial'].includes(section.status)) return [];
   const records = section.rows.filter(row => ['amount', 'collateralAmount', 'debt', 'loan', 'interest'].some(key => positiveAmount(row[key])));
-  if (positiveAmount(section.estimatedValue)) records.unshift({ estimate: section.estimatedValue });
   return records;
+}
+
+// Account estimates describe the same holdings; never turn them into another position.
+export function positionSummary(section) {
+  return ['ok', 'partial'].includes(section.status) && positiveAmount(section.estimatedValue)
+    ? section.estimatedValue : null;
 }
 
 export function mountPositions({ el, logoLabel }) {
@@ -38,26 +43,32 @@ export function mountPositions({ el, logoLabel }) {
     for (const name of labels) { const th = el('th', '', name); th.scope = 'col'; heading.append(th); }
     head.append(heading); table.append(head);
     const body = el('tbody'); table.append(body);
+    const summaries = [];
     const coverage = el('div', 'note');
     const failures = el('div', 'note error');
     for (const section of sections) {
       const successful = ['ok', 'partial'].includes(section.status);
       const records = visiblePositions(section);
+      const total = positionSummary(section);
+      if (total !== null) {
+        const summary = el('div', 'position-summary');
+        summary.append(el('span', 'position-summary-label', `${section.platform} ${section.product} · Total value`),
+          el('span', 'position-amount', `≈ ${total} USDT`));
+        summaries.push(summary);
+      }
       if (!successful) failures.append(el('div', '', `${section.platform} ${section.product}: ${section.status === 'not_configured' ? 'API key not configured' : `Unavailable · ${section.error || 'request failed'}${section.upstreamCode ? ` (${section.upstreamCode})` : ''}`}`));
       for (const r of records) {
         const row = el('tr'); row.setAttribute('role', 'row');
         cell(row, labels[0], logoLabel(section.platform));
         cell(row, labels[1], r.product || section.product);
         const assets = el('div', 'asset-pair');
-        if (r.estimate !== undefined) assets.textContent = 'USDT equivalent';
-        else if (r.asset) {
+        if (r.asset) {
           if (r.collateral) assets.append(logoLabel(r.collateral), el('span', 'arrow', '→'));
           assets.append(logoLabel(r.asset));
         } else assets.textContent = '—';
         cell(row, labels[2], assets);
         const details = el('div', 'position-values');
-        if (r.estimate !== undefined) details.append(amountLine('≈ ', r.estimate, 'USDT'));
-        else if (r.collateral) {
+        if (r.collateral) {
           details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
           details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
           if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
@@ -70,12 +81,13 @@ export function mountPositions({ el, logoLabel }) {
         if (section.fetchedAt) { updated.dataset.updatedAt = section.fetchedAt; updated.title = new Date(section.fetchedAt).toISOString(); }
         cell(row, labels[4], updated); body.append(row);
       }
-      if (section.status === 'partial' && (records.length || section.estimatedValue === undefined)) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
+      if (section.status === 'partial' && (records.length || total !== null || section.estimatedValue === undefined)) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
     }
     const wrap = el('div', 'table-wrap'); wrap.append(table);
     content.replaceChildren();
     if (body.childElementCount) content.append(wrap);
-    else if (!failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', 'No positions'));
+    else if (!summaries.length && !failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', 'No positions'));
+    content.append(...summaries);
     if (failures.childElementCount) content.append(failures);
     if (coverage.childElementCount) content.append(coverage);
     content.hidden = false;

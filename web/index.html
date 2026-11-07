@@ -12,11 +12,17 @@
   <main>
     <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a></nav></header>
     <div class="dashboard">
-    <section class="panel rates-panel" aria-labelledby="rates-title">
-    <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="rates-title">Rates</h2><span id="status" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span id="updated" class="updated"></span><button id="refresh" type="button">Refresh</button></div></header>
-    <div class="table-wrap"><table role="table" aria-label="Current rates" aria-busy="true" id="rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">Tier APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="rows"></tbody></table></div>
-    <div id="config" class="notice" hidden>Binance API key required.</div>
+    <div id="rates" class="rates-column" aria-busy="true">
+    <section class="panel rates-panel" aria-labelledby="loan-title">
+      <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="loan-title">Loan</h2><span data-rate-status="loan" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span data-rates-updated class="updated"></span><button id="refresh" data-rates-refresh type="button">Refresh</button></div></header>
+      <div class="table-wrap"><table class="rates-table" role="table" aria-label="Loan rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="loan-rows"></tbody></table></div>
     </section>
+    <section class="panel rates-panel" aria-labelledby="earn-title">
+      <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="earn-title">Earn</h2><span data-rate-status="earn" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span data-rates-updated class="updated"></span><button id="refresh-earn" data-rates-refresh type="button">Refresh</button></div></header>
+      <div class="table-wrap"><table class="rates-table" role="table" aria-label="Earn rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">Tier APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="earn-rows"></tbody></table></div>
+    </section>
+    <div id="config" class="notice" hidden>Binance API key required.</div>
+    </div>
     <section class="panel positions-panel" id="positions" aria-labelledby="positions-title">
       <header class="positions-header"><div class="panel-title"><h2 id="positions-title">Positions</h2><span id="positions-status" class="status-badge" role="status"></span></div><button id="positions-refresh" hidden type="button">Refresh</button></header>
       <div id="positions-content" hidden></div>

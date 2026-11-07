@@ -110,7 +110,7 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 
 ## 同页 Rates / Positions
 
-应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，Rates 在左，My Positions 在右，窄屏上下排列。GitHub Pages 已关闭，原地址不再提供跳转，请直接使用 Worker 地址。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
+应用统一由 `https://rate-monitor-api.smallyu.workers.dev/` 托管，左侧上方为 Loan、下方为 Earn，右侧为 Positions，窄屏上下排列。GitHub Pages 已关闭，原地址不再提供跳转，请直接使用 Worker 地址。这样 Access cookie 与私人接口同源，不需要跨站 cookie、跨域私人 CORS 或 iframe。Worker 构建只嵌入 web/ 公共静态文件，不嵌入账户数据或密钥。
 
 未登录时只显示公开 Rates 和 Sign in。Sign in 进入原有 Access 保护的 `/private/`；认证成功后返回首页 `/#positions`，浏览器从 `/private/api/positions` 按需加载仓位。Access 策略和 Worker 的 JWT/邮箱校验不变。旧仓位页面也跳回统一页面。Sign out 清除仓位 DOM，取消在途请求，避免旧响应重新填入私人数据；浏览器历史恢复时重新查询，不缓存仓位。
 
@@ -128,7 +128,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 
 ## OKX 市场利率与深色看板
 
-桌面宽屏采用深色双栏：左侧 Rates，右侧 My Positions；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
+桌面宽屏采用深色双栏：左侧 Loan / Earn 上下两个列表，右侧 Positions；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
 
 OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需密钥：
 
@@ -138,3 +138,5 @@ OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需�
 - 各产品失败独立隔离；只公开规范化的利率、时间与安全错误码，不传递上游正文。
 
 来源：[OKX V5 Simple Earn 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-public-borrow-history-public)、[Simple Earn Flexible 收益与服务费](https://www.okx.com/en-us/help/simple-earn-faq)、[OKX Loan](https://www.okx.com/loan)。
+
+Loan 与 Earn 分别展示各自的产品数量和分档；两处 Refresh 复用一次完整利率刷新。Bitget Savings 的账户总估值不再作为仓位行插入明细列表，而是在独立的 Total value 汇总栏展示；它与 Flexible / Fixed Savings 明细属于总额和组成部分，不相加。持仓明细仍保留近三个月创建范围的 partial 标记，历史持仓缺失时总估值不会被静默丢弃。

@@ -83,8 +83,8 @@ function renderEarn(p, apr) {
 }
 function render(products) {
   latestProducts = products;
-  const rows = document.querySelector('#rows');
-  rows.replaceChildren();
+  const bodies = { loan: document.querySelector('#loan-rows'), earn: document.querySelector('#earn-rows') };
+  Object.values(bodies).forEach(body => body.replaceChildren());
   document.querySelector('#config').hidden = !products.some(p => p.platform === 'Binance' && p.status === 'not_configured');
   for (const original of products) {
     const offers = Array.isArray(original.offers) ? original.offers : [];
@@ -138,7 +138,7 @@ function render(products) {
     }
     row.append(platform, product, assets, apr, updated);
     row.setAttribute('role', 'row');
-    const labels = ['Platform', 'Product', 'Assets', 'Tier APR', 'Updated'];
+    const labels = ['Platform', 'Product', 'Assets', p.kind === 'loan' ? 'APR' : 'Tier APR', 'Updated'];
     Array.from(row.children).forEach((cell, index) => {
       cell.dataset.label = labels[index];
       cell.setAttribute('role', 'cell');
@@ -146,17 +146,21 @@ function render(products) {
       value.append(...cell.childNodes);
       cell.append(value);
     });
-    rows.append(row);
+    bodies[p.kind].append(row);
+  }
+  for (const kind of ['loan', 'earn']) {
+    const list = products.filter(p => p.kind === kind);
+    document.querySelector(`[data-rate-status="${kind}"]`).textContent = list.some(p => p.status === 'loading')
+      ? 'Loading…' : `${list.filter(p => p.status === 'ok').length} / ${list.length}`;
   }
 }
 async function refresh() {
-  const button = document.querySelector('#refresh');
-  button.disabled = true;
+  const buttons = document.querySelectorAll('[data-rates-refresh]');
+  buttons.forEach(button => { button.disabled = true; });
   document.querySelector('#rates').setAttribute('aria-busy', 'true');
-  document.querySelector('#status').textContent = 'Loading…';
-  document.querySelector('#updated').textContent = '';
-  delete document.querySelector('#updated').dataset.updatedAt;
-  document.querySelector('#updated').removeAttribute('title');
+  for (const node of document.querySelectorAll('[data-rates-updated]')) {
+    node.textContent = ''; delete node.dataset.updatedAt; node.removeAttribute('title');
+  }
   // Clear old quotes so a failed refresh cannot appear to be current.
   render(descriptors.map(p => ({ ...p, status: 'loading', apr: null })));
   try {
@@ -174,21 +178,16 @@ async function refresh() {
         ? fallback.find(item => item.id === p.id) || p : p);
     }
     render(products);
-    const ok = products.filter(p => p.status === 'ok').length;
-    document.querySelector('#status').textContent = products.every(p => p.status === 'not_configured')
-      ? 'API key required'
-      : `${ok} / ${products.length}`;
-    setUpdatedTime(document.querySelector('#updated'), data.requestedAt);
+    document.querySelectorAll('[data-rates-updated]').forEach(node => setUpdatedTime(node, data.requestedAt));
   } catch {
     render(descriptors.map(p => ({ ...p, status: 'error', apr: null, error: 'service_error' })));
-    document.querySelector('#status').textContent = 'Connection failed';
-    setUpdatedTime(document.querySelector('#updated'), new Date().toISOString());
+    document.querySelectorAll('[data-rate-status]').forEach(node => { node.textContent = 'Connection failed'; });
   } finally {
-    button.disabled = false;
+    buttons.forEach(button => { button.disabled = false; });
     document.querySelector('#rates').setAttribute('aria-busy', 'false');
   }
 }
-document.querySelector('#refresh').addEventListener('click', refresh);
+document.querySelectorAll('[data-rates-refresh]').forEach(button => button.addEventListener('click', refresh));
 // Advance the age labels locally; this does not fetch or refresh platform rates.
 setInterval(() => {
   for (const node of document.querySelectorAll('[data-updated-at]')) {

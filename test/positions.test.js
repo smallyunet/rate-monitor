@@ -85,3 +85,22 @@ test('authenticated login landing returns to the public rates page without reque
   assert.equal(response.status,302);assert.equal(response.headers.get('Location'),'/#positions');assert.match(response.headers.get('Cache-Control'),/private, no-store/);
  }
 });
+
+test('Savings account estimate is a summary, never an additional holding', async () => {
+ const { visiblePositions, positionSummary } = await import('../web/positions.js');
+ const holding = {asset:'USDT',amount:'1000.00000000',product:'Flexible Savings'};
+ const section = {status:'partial',estimatedValue:'1000.00000000',rows:[holding]};
+ assert.deepEqual(visiblePositions(section),[holding]);
+ assert.equal(positionSummary(section),'1000.00000000');
+ // Older subscriptions can be absent from the detail endpoint, while the total remains valid.
+ assert.deepEqual(visiblePositions({...section,rows:[]}),[]);
+ assert.equal(positionSummary({...section,rows:[]}),'1000.00000000');
+ for (const status of ['error','not_configured']) {
+  assert.deepEqual(visiblePositions({...section,status}),[]);
+  assert.equal(positionSummary({...section,status}),null);
+ }
+ assert.deepEqual(visiblePositions({...section,rows:[{asset:'USDT',amount:'0'}]}),[]);
+ assert.equal(positionSummary({...section,estimatedValue:'0'}),null);
+ const tiny={asset:'USDT',amount:'0.00000000000000000001'};
+ assert.deepEqual(visiblePositions({...section,rows:[tiny]}),[tiny]);
+});
