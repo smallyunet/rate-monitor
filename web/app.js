@@ -1,4 +1,5 @@
 import { earnTiers, effectiveApr } from './earn-apr.js';
+import { publicBitgetRates } from './bitget.js';
 const amounts = new Map();
 const ENDPOINT = 'https://rate-monitor-api.smallyu.workers.dev/api/rates';
 const descriptors = [
@@ -137,10 +138,15 @@ async function refresh() {
     if (!response.ok) throw new Error('service_error');
     const data = await response.json();
     if (!Array.isArray(data.products)) throw new Error('service_error');
-    const products = descriptors.map(d => {
+    let products = descriptors.map(d => {
       const p = data.products.find(p => p.id === d.id);
       return p ? { ...p, ...d } : { ...d, status: 'error', apr: null, error: 'invalid_data' };
     });
+    if (products.some(p => p.platform === 'Bitget' && p.status === 'error')) {
+      const fallback = await publicBitgetRates();
+      products = products.map(p => p.platform === 'Bitget' && p.status === 'error'
+        ? fallback.find(item => item.id === p.id) || p : p);
+    }
     render(products);
     const ok = products.filter(p => p.status === 'ok').length;
     document.querySelector('#status').textContent = products.every(p => p.status === 'not_configured')

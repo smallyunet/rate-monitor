@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectBitget, normalizeBitgetLoan, handle } from '../worker/index.js';
+import { publicBitgetRates } from '../web/bitget.js';
 const fixture = () => ({ loanInfos: [
   { coin: 'USDT', rateFlexible: '.062', rate7D: '.065', rate30D: '.07' },
   { coin: 'USDC', rateFlexible: '.0372', rate7D: '.039', rate30D: '.041' },
@@ -65,4 +66,27 @@ test('Bitget failure leaves all Binance products usable and never receives Binan
   assert.equal(products.length, 6);
   assert.ok(products.filter(p => p.platform === 'Binance').every(p => p.status === 'ok'));
   assert.ok(products.filter(p => p.platform === 'Bitget').every(p => p.status === 'error' && p.upstreamCode === 40037));
+});
+test('browser fallback uses anonymous CORS requests and matches Worker rate normalization', async () => {
+  const data = fixture();
+  const products = await publicBitgetRates(async (url, options) => {
+    assert.equal(url, 'https://api.bitget.com/api/v3/loan/coins');
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.headers, undefined);
+    assert.equal(options.cache, 'no-store');
+    return Response.json({ code: '00000', data });
+  });
+  for (const p of products) {
+    assert.equal(p.status, 'ok');
+    const expected = normalizeBitgetLoan(data, p.asset);
+    for (const key of Object.keys(expected)) assert.equal(p[key], expected[key]);
+  }
+});
+test('browser fallback keeps failures and missing flexible rates unavailable', async () => {
+  const blocked = await publicBitgetRates(async () => new Response('<html>denied</html>', { status: 403 }));
+  assert.ok(blocked.every(p => p.apr === null && p.upstreamStatus === 403));
+  const data = fixture(); delete data.loanInfos[0].rateFlexible;
+  const products = await publicBitgetRates(async () => Response.json({ code: '00000', data }));
+  assert.equal(products.find(p => p.asset === 'USDT').error, 'invalid_data');
+  assert.equal(products.find(p => p.asset === 'USDC').apr, .0372);
 });

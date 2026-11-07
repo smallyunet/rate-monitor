@@ -46,6 +46,7 @@ GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名接口 +
 - `GET https://api.bitget.com/api/v3/loan/coins`，每次页面刷新只请求一次，同时提取 USDC、USDT 的 `rateFlexible` 和 BTC 抵押资格、LTV。
 - `rateFlexible` 按年化小数处理，例如 `0.062` 显示为 `6.20%`。不使用 `rate7D`、`rate30D` 固定期利率替代活期数据。
 - 当前匿名请求可用，不需要配置 Bitget 密钥。该请求不携带 Binance 密钥或任何用户信息。
+- 线上 Worker 出口访问 Bitget 返回 HTTP 403；官方公开接口允许跨域（`Access-Control-Allow-Origin: *`）。因此网页在 Worker 查询失败时回退到浏览器直连官方接口，明确使用 `credentials: omit`。浏览器网络也受限时显示错误，不填充旧报价。此回退只在页面打开/手动刷新时触发一次，不定时采样。
 - 一个币种缺失不影响另一个；Bitget 接口故障不影响 Binance，反之亦然。缺失利率显示不可用，绝不当作零。
 - 官方文档：[Get Loan Coins](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。文档标有 UTA read 权限；若未来停止匿名访问，页面会显示错误，需再评估只读认证。
 
