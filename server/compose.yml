@@ -1,0 +1,28 @@
+services:
+  relay:
+    image: node:24-alpine
+    container_name: rate-monitor-relay
+    restart: unless-stopped
+    working_dir: /app
+    command: [node, relay.js]
+    environment:
+      RELAY_LISTEN: '1'
+    env_file: relay.env
+    volumes:
+      - ./relay.js:/app/relay.js:ro
+      - ./access-auth.js:/worker/access-auth.js:ro
+    networks:
+      - entrypoint
+    read_only: true
+    user: node
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: { max-size: '2m', max-file: '2' }
+networks:
+  entrypoint:
+    external: true
+    name: viraeflow-demo_default

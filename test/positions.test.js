@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyPositionsIdentity } from '../worker/access-auth.js';
 import { handle } from '../worker/index.js';
-import { decimal, binanceLoans, binanceEarn, bitgetLoans, bitgetEarn, paginatedBinance, collectPositions, bitgetGet } from '../worker/private-positions.js';
+import { decimal, binanceLoans, binanceEarn, bitgetLoans, bitgetSavings, paginatedBinance, collectPositions, bitgetGet } from '../worker/private-positions.js';
 import { script } from '../worker/positions-page.js';
 import vm from 'node:vm';
 const env={ACCESS_TEAM_DOMAIN:'https://positions-test.cloudflareaccess.com',ACCESS_AUD:'positions',POSITIONS_EMAIL:'owner@example.com'};
@@ -32,10 +32,11 @@ test('balance adapters preserve decimal precision and do not turn missing debt i
  assert.equal(binanceLoans([{collateralCoin:'BTC',collateralAmount:'1.000000001',loanCoin:'USDC',totalDebt:'123.45'}])[0].debt,'123.45');
  assert.equal(binanceEarn([{asset:'USDT',totalAmount:'123',collateralAmount:'12'}])[0].collateralAmount,'12');
  assert.equal(bitgetLoans([{pledgeCoin:'BTC',pledgeAmount:'1',loanCoin:'USDT',loanAmount:'123',interestAmount:'0.12'}])[0].debt,null);
- assert.deepEqual(bitgetEarn([{coin:'USDT',amount:'123.45'}])[0],{asset:'USDT',amount:'123.45',product:'Earn',collateralAmount:null});
+
 });
 test('pagination requests every page and reports inconsistent totals as partial',async()=>{
  let calls=0;const result=await paginatedBinance(async()=>({rows:++calls===1?Array(100).fill({}):[{}],total:101}),'/fixed');assert.equal(result.rows.length,101);assert.equal(result.partial,false);
+ await assert.rejects(paginatedBinance(async()=>({rows:[],total:null}),'/fixed'),/invalid_data/);
  calls=0;assert.equal((await paginatedBinance(async()=>({rows:[{}],total:++calls===1?2:3}),'/fixed')).partial,true);
 });
 test('per-section upstream errors remain unavailable, not empty success',async()=>{
@@ -44,9 +45,38 @@ test('per-section upstream errors remain unavailable, not empty success',async()
 });
 test('Bitget signed GET uses a base64 HMAC and refuses redirects',async()=>{
  const vars={BITGET_API_KEY:'key',BITGET_API_SECRET:'secret',BITGET_API_PASSPHRASE:'pass'};
- await bitgetGet('/api/v2/earn/account/assets',vars,async(url,options)=>{
-  assert.equal(url,'https://api.bitget.com/api/v2/earn/account/assets');assert.equal(options.redirect,'manual');assert.equal(options.headers['ACCESS-PASSPHRASE'],'pass');assert.match(options.headers['ACCESS-SIGN'],/^[A-Za-z0-9+/]+=$/);
+ await bitgetGet('/api/v3/earn/savings/account',vars,async(url,options)=>{
+  assert.equal(url,'https://api.bitget.com/api/v3/earn/savings/account');assert.equal(options.redirect,'manual');assert.equal(options.headers['ACCESS-PASSPHRASE'],'pass');assert.match(options.headers['ACCESS-SIGN'],/^[A-Za-z0-9+/]+=$/);
   return Response.json({code:'00000',data:[]});
  });
 });
 test('private browser script parses',()=>{new vm.Script(script);});
+
+test('server relay checks identity before credentials and never forwards JWT to Bitget',async()=>{
+ const {relay}=await import('../server/relay.js');
+ let calls=0; const denied=await relay(new Request('https://relay/api/v3/earn/savings/account'),env,()=>{calls++;throw Error();});
+ assert.equal(denied.status,401);assert.equal(calls,0);
+ const jwt=await token();
+ const response=await relay(new Request('https://relay/api/v3/earn/savings/account',{headers:{'Cf-Access-Jwt-Assertion':jwt,'ACCESS-KEY':'key','ACCESS-SIGN':'signature','ACCESS-TIMESTAMP':String(Date.now()),'ACCESS-PASSPHRASE':'pass'}}),env,async(url,options)=>{
+  if(url.endsWith('/certs'))return certs(url);
+  assert.equal(url,'https://api.bitget.com/api/v3/earn/savings/account');assert.equal(options.headers['Cf-Access-Jwt-Assertion'],undefined);assert.equal(options.redirect,'manual');
+  return Response.json({code:'00000',data:[]});
+ });
+ assert.equal(response.status,200);
+ assert.equal((await relay(new Request('https://relay/api/v2/spot/trade/orders'),env)).status,404);
+});
+test('Worker relay signs the original Bitget path and sends auth only to configured relay',async()=>{
+ await bitgetGet('/api/v3/earn/savings/account',{BITGET_API_KEY:'key',BITGET_API_SECRET:'secret',BITGET_API_PASSPHRASE:'pass',BITGET_RELAY_URL:'https://relay.example/bridge',positionsJwt:'jwt'},async(url,options)=>{
+  assert.equal(url,'https://relay.example/bridge/api/v3/earn/savings/account');assert.equal(options.headers['Cf-Access-Jwt-Assertion'],'jwt');
+  return Response.json({code:'00000',data:[]});
+ });
+});
+
+test('Savings separates complete estimated value from recent per-coin holdings',async()=>{
+ const data=await bitgetSavings({BITGET_API_KEY:'key',BITGET_API_SECRET:'secret',BITGET_API_PASSPHRASE:'pass'},async url=>{
+  if(url.endsWith('/account'))return Response.json({code:'00000',data:{usdtAmount:'123.456'}});
+  const period=new URL(url).searchParams.get('periodType');
+  return Response.json({code:'00000',data:{resultList:period==='flexible'?[{productCoin:'USDC',holdAmount:'100.0001',status:'in_holding'}]:[]}});
+ });
+ assert.equal(data.estimatedValue,'123.456');assert.equal(data.rows[0].asset,'USDC');assert.equal(data.rows[0].amount,'100.0001');assert.equal(data.partial,true);assert.match(data.coverage,/3 months/);
+});

@@ -11,9 +11,9 @@ function age(value) { const seconds = Math.max(0, Math.floor((Date.now() - Date.
 function render() {
   sections.innerHTML = data.sections.map(s => {
     const isLoan = s.product.includes('Loan');
-    const state = s.status === 'ok' ? (s.rows.length ? '' : 'No positions') : s.status === 'partial' ? 'Partial results' : s.status === 'not_configured' ? 'API key not configured' : 'Unavailable · ' + (s.error || 'request failed');
-    const rows = s.rows.map(r => isLoan ? '<tr><td>'+quantity(r.collateralAmount,r.collateral)+'</td><td>'+quantity(r.debt ?? r.loan,r.asset)+(r.debt == null ? '<small>Loan amount</small>' : '<small>Includes interest</small>')+'</td><td>'+quantity(r.interest,r.asset)+'</td></tr>' : '<tr><td>'+esc(r.asset)+'</td><td>'+esc(r.amount)+'</td><td>'+quantity(r.collateralAmount,r.asset)+'</td></tr>').join('');
-    return '<section><h2>'+esc(s.platform)+' · '+esc(s.product)+' <span class="badge" data-time="'+esc(s.fetchedAt || '')+'">'+(s.fetchedAt ? age(s.fetchedAt) : '')+'</span></h2>'+(state ? '<div class="empty '+(s.status === 'error' ? 'error' : '')+'">'+esc(state)+'</div>' : '')+(rows ? '<div class="table-wrap"><table><thead><tr>'+(isLoan ? '<th>Collateral</th><th>Debt / Loan</th><th>Interest</th>' : '<th>Asset</th><th>Balance</th><th>Used as collateral</th>')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '')+'</section>';
+    const state = s.status === 'ok' ? (s.rows.length ? '' : 'No positions') : s.status === 'partial' ? (s.coverage || 'Partial results') : s.status === 'not_configured' ? 'API key not configured' : 'Unavailable · ' + (s.error || 'request failed') + (s.upstreamCode ? ' (' + s.upstreamCode + ')' : '');
+    const rows = s.rows.map(r => isLoan ? '<tr><td>'+quantity(r.collateralAmount,r.collateral)+'</td><td>'+quantity(r.debt ?? r.loan,r.asset)+(r.debt == null ? '<small>Loan amount</small>' : '<small>Includes interest</small>')+'</td><td>'+quantity(r.interest,r.asset)+'</td></tr>' : '<tr><td>'+esc(r.asset)+(s.platform === 'Bitget' ? '<small>'+esc(r.product)+'</small>' : '')+'</td><td>'+esc(r.amount)+'</td><td>'+quantity(r.collateralAmount,r.asset)+'</td></tr>').join('');
+    return '<section><h2>'+esc(s.platform)+' · '+esc(s.product)+' <span class="badge" data-time="'+esc(s.fetchedAt || '')+'">'+(s.fetchedAt ? age(s.fetchedAt) : '')+'</span></h2>'+(s.estimatedValue !== undefined ? '<p class="note">Savings value ≈ '+esc(s.estimatedValue)+' USDT · all subscriptions</p>' : '')+(state ? '<div class="empty '+(s.status === 'error' ? 'error' : '')+'">'+esc(state)+'</div>' : '')+(rows ? '<div class="table-wrap"><table><thead><tr>'+(isLoan ? '<th>Collateral</th><th>Debt / Loan</th><th>Interest</th>' : '<th>Asset</th><th>Balance</th><th>Used as collateral</th>')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '')+'</section>';
   }).join('');
 }
 async function load() {
@@ -22,7 +22,7 @@ async function load() {
     const response = await fetch('/private/api/positions', { cache:'no-store', redirect:'error' });
     if (response.status === 401) throw new Error('Session expired. Reload to sign in.');
     if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error('Unable to load positions. Reload to sign in.');
-    data = await response.json(); render(); status.textContent = data.sections.filter(s=>s.status==='ok').length+' / '+data.sections.length;
+    data = await response.json(); render(); status.textContent = data.sections.filter(s=>s.status==='ok'||s.status==='partial').length+' / '+data.sections.length;
   } catch (error) { status.textContent = error.message; if(data) status.textContent += ' Previous values retained.'; }
   finally { refresh.disabled = false; }
 }

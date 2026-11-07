@@ -93,9 +93,17 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 - Binance Flexible Loan：`GET /sapi/v2/loan/flexible/ongoing/orders`，抵押数量及含利息的 `totalDebt`。
 - Binance Simple Earn：`GET /sapi/v1/simple-earn/flexible/position` 和 `/sapi/v1/simple-earn/locked/position`，活期/定期余额分别展示。活期的 `collateralAmount` 可能与借贷抵押重叠，因此不合计为总资产。最多读取 20 页，超过上限或总数变化显示 Partial results。
 - Bitget Loan：`GET /api/v3/loan/borrow-ongoing`，抵押数量、借款金额和利息分列；不把本金字段误标成含息总债务。
-- Bitget Earn：`GET /api/v2/earn/account/assets`，按币种实际余额；不用折算成 USDT 的账户估值冒充 USDT 持仓，也不依赖仅覆盖近期订单的 savings 列表。
+- Bitget Savings：当前 UTA 账户的 Classic v2 Earn 接口返回 40085，使用 `GET /api/v3/earn/savings/account` 展示全部 Savings 的 USDT 折合估值（明确不是 USDT 代币余额）。通过 `/api/v3/earn/savings/assets?periodType=flexible|fixed` 展示近三个月创建的活期/定期持仓明细，最多每类 10 页；此接口以创建时间过滤，因此始终标注覆盖范围，不能据此声称列齐更早持仓或全部 Earn 产品。
 - 查询失败为 Unavailable；成功且无数据为 No positions；未配置密钥单独显示。余额保留平台十进制字符串精度。
-- Bitget Worker 出口曾返回 HTTP 403。私人请求不能采用公开利率的浏览器回退，遇到限制会显示 `upstream_forbidden`，需解决平台允许的后端出口。
+- Bitget Worker 出口曾返回 HTTP 403。私人请求不能采用公开利率的浏览器回退。现通过 ssh c 上独立容器 `rate-monitor-relay` 转发，Worker 配置 `BITGET_RELAY_URL` 指向该服务的 HTTPS 路径。
 - 只在打开仓位页或 Refresh 时请求，不定时采样。页面离开时清空 DOM 中的账户值；返回页面重新读取。
 
 官方文档：[Bitget Earn Account](https://www.bitget.com/docs/catalog/earn-classic-account/classic-earn-account#earn-account-assets)、[Bitget Crypto Loans](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。
+
+### ssh c 只读转发
+
+`server/relay.js` 在 `/opt/rate-monitor` 独立部署，Docker 容器仅加入已有入口网络，没有公开容器端口。现有 Caddy 在 `c.dark20.xyz/_rate-monitor/*` 转发到容器，原网站路由保留；Caddy 源配置及 compose override 保留了重建后的路由配置。
+
+转发服务校验同一 Access JWT 签名、AUD、issuer、邮箱及过期时间，且仅允许借贷、Savings 总览、Savings 明细这三个 Bitget GET 路径；明细 query 只允许 flexible/fixed、固定 limit=100 和数字 cursor，不接受任意上游或交易接口。平台签名由 Worker 生成；服务器临时转发 API key、签名与 passphrase，但不持久保存这些值或 Bitget API secret，且不把 Access JWT 转发到交易所。使用 HTTPS、禁用缓存和重定向、限制返回体大小和请求频率。服务器环境文件仅包含 Access 配置和允许邮箱，权限 600，不纳入仓库。
+
+部署时复制 `server/relay.js`、`server/compose.yml`、`worker/access-auth.js`（服务器文件名 access-auth.js）到服务器目录，并配置 relay.env，然后 `docker compose up -d`。更新 worker/access-auth.js 时须同步服务器文件。`server/install-route.py` 是现有 ssh c Caddy 入口的幂等配置脚本，会先保存原配置。
