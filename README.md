@@ -1,6 +1,6 @@
 # Rate Monitor
 
-多平台借贷与活期利率看板。第一版支持 Binance Flexible Loan（BTC 抵押 / USDC、USDT 借款）及 USDC、USDT Simple Earn Flexible。
+多平台借贷与活期利率看板。支持 Binance 和 Bitget 的 BTC 抵押 / USDC、USDT 活期借款，以及 Binance USDC、USDT Simple Earn Flexible。
 
 - 网页：https://smallyunet.github.io/rate-monitor/
 - Worker：https://rate-monitor-api.smallyu.workers.dev
@@ -8,7 +8,7 @@
 
 ## 工作方式
 
-GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名查询接口。
+GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名接口 + Bitget 官方公开市场接口。
 
 打开页面或手动刷新时获取数据。不运行定时采样，不存储账户或历史数据，不请求持仓、余额，不执行交易。GitHub Actions 仅检查代码、构建和部署 Pages。
 
@@ -41,6 +41,14 @@ GitHub Pages 静态网页 → Cloudflare Worker → Binance 官方签名查询�
 - 每个产品独立报告成功、失败或未配置；接口异常不影响其他产品。刷新前清除旧报价，不把旧数据当作实时值。
 - Worker 和前端均禁用响应缓存，无自动轮询；单次刷新内部串行签名请求、间隔至少 1.1 秒。多用户请求仍可能触发平台限流，页面会显示相应状态。
 
+## Bitget
+
+- `GET https://api.bitget.com/api/v3/loan/coins`，每次页面刷新只请求一次，同时提取 USDC、USDT 的 `rateFlexible` 和 BTC 抵押资格、LTV。
+- `rateFlexible` 按年化小数处理，例如 `0.062` 显示为 `6.20%`。不使用 `rate7D`、`rate30D` 固定期利率替代活期数据。
+- 当前匿名请求可用，不需要配置 Bitget 密钥。该请求不携带 Binance 密钥或任何用户信息。
+- 一个币种缺失不影响另一个；Bitget 接口故障不影响 Binance，反之亦然。缺失利率显示不可用，绝不当作零。
+- 官方文档：[Get Loan Coins](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。文档标有 UTA read 权限；若未来停止匿名访问，页面会显示错误，需再评估只读认证。
+
 ## 本地检查与部署
 
 Node.js 20+，无运行依赖。以下命令不会启动浏览器：
@@ -58,7 +66,7 @@ Worker 的源代码是 `worker/index.js`（单文件 ES module）。可在 Cloud
 ## API 与扩展
 
 - `GET /health`：服务状态和是否已配置密钥，不返回密钥。
-- `GET /api/rates`：按需查询四项产品，返回 `mode: on-demand`、产品状态、时间及公开利率字段。
+- `GET /api/rates`：按需查询六项产品，返回 `mode: on-demand`、产品状态、时间及公开利率字段。
 - API 只有固定查询路由；不接受调用者传入任意 Binance 路径、账户、币种或签名参数。
 - 允许浏览器 Origin 默认为 `https://smallyunet.github.io`，可用 Worker 文本变量 `ALLOWED_ORIGIN` 修改。CORS 是浏览器限制，不等于用户认证。API 公开展示产品利率；如流量增加，应在 Cloudflare 配置限流。
 - 新增平台时添加对应的采集适配器，再扩充产品描述与页面分组；保持统一的 `platform / kind / asset / apr / status / fetchedAt` 字段。
@@ -68,3 +76,5 @@ Worker 的源代码是 `worker/index.js`（单文件 ES module）。可在 Cloud
 ## 图标
 
 `web/icons/` 中 Binance（BNB 标志）、BTC、USDT、USDC SVG 来自 [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons)，随仓库保存许可文件 `web/icons/LICENSE.md`。页面使用本地图标，不依赖第三方图片请求。
+
+Bitget 图标来自 [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Logo_Bitget.svg)，源自 Bitget 官方品牌 SVG；仅裁切视图保留独立标志，形状与颜色不变。该文件在 Commons 标注为 PD-textlogo，商标归原品牌所有。

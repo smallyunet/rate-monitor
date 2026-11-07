@@ -7,6 +7,10 @@ const PRODUCTS = [
 ];
 // Official Binance GCP endpoint; the main host rejects this Worker's public probes with HTTP 403.
 const API = 'https://api-gcp.binance.com';
+const BITGET_PRODUCTS = [
+  { id: 'bitget-loan-usdc', platform: 'Bitget', kind: 'loan', asset: 'USDC', collateral: 'BTC', name: 'Flexible Loan' },
+  { id: 'bitget-loan-usdt', platform: 'Bitget', kind: 'loan', asset: 'USDT', collateral: 'BTC', name: 'Flexible Loan' },
+];
 export function rate(value) {
   if (typeof value !== 'string' && typeof value !== 'number') throw new Error('invalid_data');
   if (String(value).trim() === '') throw new Error('invalid_data');
@@ -74,6 +78,43 @@ async function signedGet(path, params, env, fetcher) {
   return data;
 }
 const SAFE_ERRORS = new Set(['invalid_data','unavailable','ambiguous_product','network_error','upstream_error','region_restricted','rate_limited','clock_error','credentials_error']);
+function productFailure(product, error) {
+  return { ...product, status: 'error', apr: null, error: SAFE_ERRORS.has(error.message) ? error.message : 'upstream_error',
+    ...(Number.isInteger(error.upstreamStatus) ? { upstreamStatus: error.upstreamStatus } : {}),
+    ...(Number.isFinite(error.upstreamCode) ? { upstreamCode: error.upstreamCode } : {}),
+  };
+}
+export function normalizeBitgetLoan(data, asset) {
+  if (!Array.isArray(data?.loanInfos) || !Array.isArray(data?.pledgeInfos)) throw new Error('invalid_data');
+  const loans = data.loanInfos.filter(row => row?.coin === asset);
+  if (!loans.length) throw new Error('unavailable');
+  if (loans.length !== 1) throw new Error('ambiguous_product');
+  const btc = data.pledgeInfos.find(row => row?.coin === 'BTC');
+  // rateFlexible is an annual decimal (e.g. 0.062 = 6.20%). Never use fixed-term rates.
+  return { apr: rate(loans[0].rateFlexible), aprSource: 'realtime', collateralEligible: !!btc,
+    initialLtv: btc ? rate(btc.initRate) : null, liquidationLtv: btc ? rate(btc.forceRate) : null };
+}
+export async function collectBitget(fetcher = fetch) {
+  try {
+    let response;
+    try {
+      // Public market data only: no account credentials, signatures or user input.
+      response = await fetcher('https://api.bitget.com/api/v3/loan/coins', { signal: AbortSignal.timeout(12000) });
+    } catch { throw new Error('network_error'); }
+    const failure = (kind, code) => Object.assign(new Error(kind), { upstreamStatus: response.status,
+      upstreamCode: typeof code === 'string' && /^\d{1,8}$/.test(code) ? Number(code) : undefined });
+    if (response.status === 451) throw failure('region_restricted');
+    if ([418, 429].includes(response.status)) throw failure('rate_limited');
+    let payload;
+    try { payload = await response.json(); } catch { throw failure('upstream_error'); }
+    if (!response.ok || payload?.code !== '00000') throw failure('upstream_error', payload?.code);
+    const fetchedAt = new Date().toISOString();
+    return BITGET_PRODUCTS.map(product => {
+      try { return { ...product, ...normalizeBitgetLoan(payload.data, product.asset), status: 'ok', fetchedAt }; }
+      catch (error) { return productFailure(product, error); }
+    });
+  } catch (error) { return BITGET_PRODUCTS.map(product => productFailure(product, error)); }
+}
 export async function collectBinance(env, fetcher = fetch) {
   if (!env.BINANCE_API_KEY || !env.BINANCE_API_SECRET) return PRODUCTS.map(p => ({ ...p, status: 'not_configured', apr: null, error: 'missing_credentials' }));
   // Serialize signed calls within a refresh, including the two Earn queries.
@@ -101,10 +142,7 @@ export async function collectBinance(env, fetcher = fetch) {
       }
       return { ...product, ...value, status: 'ok', fetchedAt: new Date().toISOString() };
     } catch (error) {
-      return { ...product, status: 'error', apr: null, error: SAFE_ERRORS.has(error.message) ? error.message : 'upstream_error',
-        ...(Number.isInteger(error.upstreamStatus) ? { upstreamStatus: error.upstreamStatus } : {}),
-        ...(Number.isFinite(error.upstreamCode) ? { upstreamCode: error.upstreamCode } : {}),
-      };
+      return productFailure(product, error);
     }
   });
   return Promise.all(tasks);
@@ -134,7 +172,7 @@ export async function handle(request, env, fetcher = fetch) {
   }
   if (path === '/health' || path === '/') return json({ service: 'rate-monitor', version: 1, configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET) });
   if (path !== '/api/rates') return json({ error: 'not_found' }, 404);
-  const products = await collectBinance(env, fetcher);
+  const products = (await Promise.all([collectBinance(env, fetcher), collectBitget(fetcher)])).flat();
   return json({ requestedAt: new Date().toISOString(), mode: 'on-demand', products });
 }
 // Cloudflare passes ExecutionContext as argument three, not a fetch implementation.
