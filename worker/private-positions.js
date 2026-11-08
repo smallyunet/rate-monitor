@@ -17,10 +17,15 @@ export function binanceEarn(rows, locked = false) {
   return rows.map(r => ({ asset: coin(r.asset), amount: decimal(locked ? r.amount : r.totalAmount),
     collateralAmount: locked ? null : optionalDecimal(r.collateralAmount), product: locked ? 'Locked Earn' : 'Flexible Earn' }));
 }
+// Risk fields are optional percentages; malformed risk data must not hide balances.
+function riskPercent(value) {
+  return typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value)) ? value : null;
+}
 export function bitgetLoans(rows) {
   if (!Array.isArray(rows)) throw new Error('invalid_data');
   return rows.map(r => ({ collateral: coin(r.pledgeCoin), collateralAmount: decimal(r.pledgeAmount),
-    asset: coin(r.loanCoin), loan: decimal(r.loanAmount), interest: decimal(r.interestAmount), debt: null, ltv: null }));
+    asset: coin(r.loanCoin), loan: decimal(r.loanAmount), interest: decimal(r.interestAmount), debt: null, ltv: null,
+    currentLtvPercent: riskPercent(r.pledgeRate), marginCallLtvPercent: riskPercent(r.supRate), liquidationLtvPercent: riskPercent(r.forceRate) }));
 }
 export async function paginatedBinance(get, path, sizeName = 'size') {
   const all = [];

@@ -140,3 +140,9 @@ OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需�
 来源：[OKX V5 Simple Earn 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-public-borrow-history-public)、[Simple Earn Flexible 收益与服务费](https://www.okx.com/en-us/help/simple-earn-faq)、[OKX Loan](https://www.okx.com/loan)。
 
 Loan 与 Earn 分别展示各自的产品数量和分档；两处 Refresh 复用一次完整利率刷新。Bitget Savings 的账户总估值不再作为仓位行插入明细列表，而是在独立的 Total value 汇总栏展示；它与 Flexible / Fixed Savings 明细属于总额和组成部分，不相加。持仓明细仍保留近三个月创建范围的 partial 标记，历史持仓缺失时总估值不会被静默丢弃。
+
+### Loan Positions 清算风险
+
+Bitget 的 `borrow-ongoing` 读取 `pledgeRate`（当前 LTV）、`supRate`（补仓线）、`forceRate`（清算线），均按百分数展示。Position 下方显示 Interest；右侧 Liquidation 列用细进度条展示当前 LTV / 清算线，并显示 Gap（清算线减当前 LTV，单位为百分点）和 Call（补仓线）。颜色按接口阈值变化，缺失或非法风险字段显示 —，不会按零处理，也不影响余额展示。这里不估算清算价格或可承受币价跌幅。
+
+字段来源：[Bitget Crypto Loans](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。

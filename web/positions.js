@@ -16,6 +16,19 @@ export function positionKind(section) {
   return section.product === 'Flexible Loan' ? 'loan' : 'earn';
 }
 
+// All values use percentage points, as returned by Bitget (77.97 means 77.97%).
+export function loanRisk(row) {
+  const read = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value)) ? Number(value) : null;
+  const current = read(row.currentLtvPercent);
+  const rawLiquidation = read(row.liquidationLtvPercent);
+  const liquidation = rawLiquidation > 0 && rawLiquidation <= 100 ? rawLiquidation : null;
+  const rawCall = read(row.marginCallLtvPercent);
+  const call = rawCall > 0 && rawCall <= 100 && (liquidation === null || rawCall < liquidation) ? rawCall : null;
+  const gap = current !== null && liquidation !== null ? liquidation - current : null;
+  return { current, liquidation, call, gap,
+    state: gap === null ? 'unknown' : gap <= 0 ? 'danger' : call === null ? 'unknown' : current >= call ? 'warning' : 'normal' };
+}
+
 // Merge adjacent platform cells on desktop. Repeated cells remain available for mobile cards.
 export function mergePlatformCells(body) {
   const rows = Array.from(body.children);
@@ -58,8 +71,27 @@ export function mountPositions({ el, logoLabel }) {
     line.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
     return line;
   }
+  function riskView(row) {
+    const risk = loanRisk(row);
+    const format = value => value === null ? '—' : `${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`;
+    const view = el('div', `loan-risk ${risk.state}`);
+    const headline = el('div', 'risk-headline');
+    headline.append(el('span', 'position-amount', `LTV ${format(risk.current)}`), el('span', 'secondary', `Liq ${format(risk.liquidation)}`));
+    view.append(headline);
+    if (risk.gap !== null) {
+      const bar = el('progress', 'risk-progress');
+      bar.max = risk.liquidation; bar.value = Math.min(risk.current, risk.liquidation);
+      bar.setAttribute('aria-label', `Current LTV ${format(risk.current)}, liquidation at ${format(risk.liquidation)}`);
+      view.append(bar);
+    }
+    const gapText = risk.gap === null ? 'Gap —' : risk.gap <= 0 ? 'At liquidation threshold' : `Gap ${risk.gap.toLocaleString('en-US', { maximumFractionDigits: 2 })} pp`;
+    const foot = el('div', 'secondary risk-caption', `${gapText} · Call ${format(risk.call)}`);
+    foot.title = 'Gap = liquidation LTV minus current LTV (percentage points). Call = margin-call LTV.';
+    view.append(foot);
+    return view;
+  }
   function renderGroup(content, sections, kind) {
-    const labels = ['Platform', 'Product', 'Assets', 'Position', ...(kind === 'loan' ? ['Interest'] : []), 'Updated'];
+    const labels = ['Platform', 'Product', 'Assets', 'Position', ...(kind === 'loan' ? ['Liquidation'] : []), 'Updated'];
     const table = el('table'); table.setAttribute('aria-label', `${kind === 'loan' ? 'Loan' : 'Earn'} positions`); table.setAttribute('role', 'table');
     const head = el('thead'); const heading = el('tr');
     for (const name of labels) { const th = el('th', '', name); th.scope = 'col'; th.dataset.label = name; heading.append(th); }
@@ -85,12 +117,13 @@ export function mountPositions({ el, logoLabel }) {
         if (r.collateral) {
           details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
           details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
+          if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
           details.append(amountLine('', r.amount, r.asset));
           if (positiveAmount(r.collateralAmount)) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
         }
         cell(row, labels[3], details);
-        if (kind === 'loan') cell(row, 'Interest', amountLine('', r.interest, r.asset));
+        if (kind === 'loan') cell(row, 'Liquidation', riskView(r));
         const updated = el('span', '', '—');
         if (section.fetchedAt) { updated.dataset.updatedAt = section.fetchedAt; updated.title = new Date(section.fetchedAt).toISOString(); }
         cell(row, 'Updated', updated); body.append(row);

@@ -68,9 +68,9 @@ tbody tr:hover { background: var(--hover); }
 [data-positions-content] th:nth-child(2) { width: 144px; }
 [data-positions-content] th:nth-child(3) { width: 150px; }
 [data-positions-content] th:last-child { width: 80px; }
-[data-positions-content="loan"] table { min-width: 860px; }
-[data-positions-content] th[data-label="Interest"] { width: 140px; }
-[data-positions-content] td[data-label="Interest"] { white-space: nowrap; overflow-wrap: normal; }
+[data-positions-content="loan"] table { min-width: 900px; }
+[data-positions-content] th[data-label="Liquidation"] { width: 190px; }
+[data-positions-content] td[data-label="Liquidation"] { white-space: nowrap; overflow-wrap: normal; }
 [data-positions-content] .logo-label { flex-wrap: nowrap; white-space: nowrap; }
 [data-positions-content] td[data-label="Product"], [data-positions-content] td[data-label="Updated"] { white-space: nowrap; overflow-wrap: normal; }
 [data-positions-content] .asset-pair { flex-wrap: nowrap; white-space: nowrap; }
@@ -113,3 +113,16 @@ tbody tr:hover { background: var(--hover); }
   .platform-group { background: transparent; }
   .platform-group-start:not(:first-child) > td { border-top: 0; }
 }
+
+.loan-risk { --risk-color: #929aa5; font-variant-numeric: tabular-nums; }
+.loan-risk.normal { --risk-color: #48c7b0; }
+.loan-risk.warning { --risk-color: #f0b90b; }
+.loan-risk.danger { --risk-color: #f67b8b; }
+.risk-headline { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+[data-positions-content] .risk-headline .secondary { margin: 0; }
+.risk-progress { display: block; appearance: none; width: 100%; height: 4px; margin: 6px 0; border: 0; border-radius: 2px; overflow: hidden; background: #303741; color: var(--risk-color); accent-color: var(--risk-color); }
+.risk-progress::-webkit-progress-bar { background: #303741; border-radius: 2px; }
+.risk-progress::-webkit-progress-value { background: var(--risk-color); border-radius: 2px; }
+.risk-progress::-moz-progress-bar { background: var(--risk-color); border-radius: 2px; }
+.risk-caption { font-size: 10px; }
+.loan-risk.warning .risk-caption, .loan-risk.danger .risk-caption { color: var(--risk-color); }

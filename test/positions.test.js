@@ -112,3 +112,27 @@ test('Savings account estimate is a summary, never an additional holding', async
    for (const product of ['Flexible Earn','Locked Earn','Savings']) assert.equal(positionKind({platform,product}), 'earn');
   }
  });
+
+test('Bitget risk percentages preserve units and missing risk never hides loan balances', () => {
+ const raw = {pledgeCoin:'BTC',pledgeAmount:'1',loanCoin:'USDC',loanAmount:'800',interestAmount:'0.4',pledgeRate:'62.37',supRate:'85',forceRate:'91'};
+ const row = bitgetLoans([raw])[0];
+ assert.equal(row.currentLtvPercent,'62.37'); assert.equal(row.marginCallLtvPercent,'85'); assert.equal(row.liquidationLtvPercent,'91');
+ for (const value of [undefined,null,'','NaN','-1','85%']) {
+  const missing = bitgetLoans([{...raw,pledgeRate:value}])[0];
+  assert.equal(missing.currentLtvPercent,null); assert.equal(missing.loan,'800');
+ }
+});
+test('loan risk computes percentage-point gap and respects call and liquidation boundaries', async () => {
+ const { loanRisk } = await import('../web/positions.js');
+ const row = {currentLtvPercent:'60',marginCallLtvPercent:'85',liquidationLtvPercent:'90'};
+ assert.deepEqual(loanRisk(row),{current:60,call:85,liquidation:90,gap:30,state:'normal'});
+ assert.equal(loanRisk({...row,currentLtvPercent:'85'}).state,'warning');
+ assert.equal(loanRisk({...row,currentLtvPercent:'90'}).state,'danger');
+ assert.equal(loanRisk({...row,currentLtvPercent:'95'}).gap,-5);
+ assert.equal(loanRisk({...row,currentLtvPercent:'0'}).gap,90);
+ for (const value of [undefined,null,'','NaN','-1']) assert.equal(loanRisk({...row,currentLtvPercent:value}).gap,null);
+ assert.equal(loanRisk({...row,liquidationLtvPercent:'0'}).gap,null);
+ assert.equal(loanRisk({...row,liquidationLtvPercent:'101'}).state,'unknown');
+ assert.equal(loanRisk({...row,marginCallLtvPercent:null}).state,'unknown');
+ assert.equal(loanRisk({...row,marginCallLtvPercent:'95'}).call,null);
+});
