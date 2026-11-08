@@ -87,7 +87,7 @@ export function mountPositions({ el, logoLabel }) {
           details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
         } else {
           details.append(amountLine('', r.amount, r.asset));
-          if (r.collateralAmount != null) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
+          if (positiveAmount(r.collateralAmount)) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
         }
         cell(row, labels[3], details);
         if (kind === 'loan') cell(row, 'Interest', amountLine('', r.interest, r.asset));
