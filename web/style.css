@@ -126,3 +126,8 @@ tbody tr:hover { background: var(--hover); }
 .risk-progress::-moz-progress-bar { background: var(--risk-color); border-radius: 2px; }
 .risk-caption { font-size: 10px; }
 .loan-risk.warning .risk-caption, .loan-risk.danger .risk-caption { color: var(--risk-color); }
+
+@media (min-width: 681px) {
+  .rates-table[aria-label="Loan rates"] th:nth-child(4),
+  .rates-table[aria-label="Loan rates"] td.apr { padding-left: 44px; }
+}
