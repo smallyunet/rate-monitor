@@ -31,7 +31,7 @@ export function loanRisk(row) {
 
 export function earnProfitLines(row) {
   if (typeof row.interestAsset !== 'string' || !/^[A-Z0-9._-]{1,32}$/.test(row.interestAsset)) return [];
-  return [['Earned: ', row.totalProfit], ['Yesterday: ', row.lastProfit]]
+  return [['Earned: ', row.totalProfit]]
     .filter(([, value]) => typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value))
     .map(([label, value]) => ({ label, value, asset: row.interestAsset }));
 }

@@ -141,10 +141,10 @@ test('Savings earnings preserve exact values and require the actual interest coi
  const { savingsEarnings } = await import('../worker/private-positions.js');
  const { earnProfitLines } = await import('../web/positions.js');
  const values = savingsEarnings({interestCoin:'usdt',totalProfit:'0.123456789123456789',lastProfit:'0.00000000'});
- assert.deepEqual(earnProfitLines(values),[{label:'Earned: ',value:'0.123456789123456789',asset:'USDT'},{label:'Yesterday: ',value:'0.00000000',asset:'USDT'}]);
+ assert.deepEqual(earnProfitLines(values),[{label:'Earned: ',value:'0.123456789123456789',asset:'USDT'}]);
  assert.deepEqual(earnProfitLines(savingsEarnings({totalProfit:'10',lastProfit:'2'})),[]);
  assert.deepEqual(earnProfitLines(savingsEarnings({interestCoin:'USDT',totalProfit:'',lastProfit:'NaN'})),[]);
- assert.deepEqual(earnProfitLines(savingsEarnings({interestCoin:'BTC',lastProfit:'-0.01'})),[{label:'Yesterday: ',value:'-0.01',asset:'BTC'}]);
+ assert.deepEqual(earnProfitLines(savingsEarnings({interestCoin:'BTC',lastProfit:'-0.01'})),[]);
  const data = await bitgetSavings({BITGET_API_KEY:'key',BITGET_API_SECRET:'secret',BITGET_API_PASSPHRASE:'pass'},async url => Response.json({code:'00000',data:url.endsWith('/account') ? {usdtAmount:'1000'} : {resultList:new URL(url).searchParams.get('periodType') === 'flexible' ? [{productCoin:'USDC',holdAmount:'1000',status:'in_holding',interestCoin:'USDT',lastProfit:'0.2',totalProfit:'1.2'}] : []}}));
  assert.equal(data.rows[0].asset,'USDC'); assert.equal(data.rows[0].interestAsset,'USDT'); assert.equal(data.rows[0].totalProfit,'1.2');
 });
