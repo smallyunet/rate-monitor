@@ -130,7 +130,7 @@ export async function collectPositions(env, fetcher, binanceGet) {
   for (const { platform, product, configured, read } of tasks) {
     if (!configured) { sections.push({ platform, product, status: 'not_configured', rows: [] }); continue; }
     try {
-      const result = await read();
+      const result = { partial: false, estimatedValue: undefined, coverage: undefined, ...await read() };
       sections.push({ platform, product, status: result.partial ? 'partial' : 'ok', rows: result.rows,
         ...(result.estimatedValue !== undefined ? { estimatedValue: result.estimatedValue } : {}),
         ...(result.coverage ? { coverage: result.coverage } : {}), fetchedAt: new Date().toISOString() });
