@@ -188,8 +188,7 @@ export function mountPositions({ el, logoLabel }) {
     add('Est. net APR', percent(summary.netApr), 'Annual net income / Stablecoin Earn');
     add('Est. net income', money(summary.netAnnual === null ? null : summary.netAnnual / 365) + ' / day', `${money(summary.netAnnual === null ? null : summary.netAnnual / 12)} / month · ${money(summary.netAnnual)} / year`);
     const wrap = el('div', 'table-wrap'); wrap.append(table);
-    content.replaceChildren(wrap, el('p', 'note', 'Visible positions only · USDC / USDT = $1 · Current APR held constant · Simple interest; excludes non-stablecoin Earn and fees.'));
-    if (summary.partial || !summary.supported) content.append(el('p', 'note', 'Partial coverage · Some sources have limited history or unavailable data; totals may be incomplete.'));
+    content.replaceChildren(wrap);
     document.querySelector('#portfolio-summary').hidden = false;
   }
   function render(sections) {
