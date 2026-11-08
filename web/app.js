@@ -74,7 +74,7 @@ function renderEarn(p, apr) {
     apr.replaceChildren();
     for (const tier of tiers) {
       const line = el('div', 'apr-tier');
-      line.append(el('span', 'secondary', tierLabel(tier, p.asset)), el('strong', '', percent(tier.apr)));
+      line.append(el('span', 'secondary', `${tierLabel(tier, p.asset)}:`), el('strong', '', percent(tier.apr)));
       apr.append(line);
     }
   }

@@ -54,10 +54,10 @@ tbody tr:hover { background: var(--hover); }
 .logo { width: 14px; height: 14px; flex: none; }
 .asset-pair { flex-wrap: nowrap; gap: 4px; white-space: nowrap; }
 .arrow { color: #727c8a; }
-/* Keep each amount band and its APR in one clearly bounded row. */
-.apr-tier { max-width: 310px; display: grid; grid-template-columns: minmax(0, 1fr) 76px; align-items: center; gap: 12px; margin-bottom: 5px; padding: 6px 9px; background: #1e2329; border: 1px solid #303741; border-radius: 4px; }
+/* Plain amount/APR lines follow the position detail typography. */
+.apr-tier { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; margin-bottom: 3px; }
 .apr-tier:last-child { margin-bottom: 0; }
-.apr-tier strong { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 400; text-align: right; }
+.apr-tier strong { color: var(--apr); white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 400; }
 .apr-tier .secondary { margin: 0; color: #b7bdc6; overflow-wrap: anywhere; }
 .position-amount { color: var(--apr); font-size: 13px; font-weight: 400; }
 .position-values { min-width: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -96,7 +96,6 @@ tbody tr:hover { background: var(--hover); }
   td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 10px; margin-bottom: 3px; text-align: left; }
   .cell-value { overflow-wrap: anywhere; }
   .apr { text-align: left; }
-  .apr-tier { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 6px; }
 }
 
 .position-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding: 11px 14px; border-top: 1px solid var(--line); background: #1e2329; }
