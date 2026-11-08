@@ -1,3 +1,4 @@
+# Run on ssh a; the shared c.dark20.xyz entrypoint routes /_rate-monitor/* here.
 services:
   relay:
     image: node:24-alpine

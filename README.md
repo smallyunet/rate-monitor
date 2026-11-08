@@ -95,18 +95,18 @@ Bitget 只读 Secrets：`BITGET_API_KEY`、`BITGET_API_SECRET`、`BITGET_API_PAS
 - Bitget Loan：`GET /api/v3/loan/borrow-ongoing`，抵押数量、借款金额和利息分列；不把本金字段误标成含息总债务。
 - Bitget Savings：当前 UTA 账户的 Classic v2 Earn 接口返回 40085，使用 `GET /api/v3/earn/savings/account` 展示全部 Savings 的 USDT 折合估值（明确不是 USDT 代币余额）。通过 `/api/v3/earn/savings/assets?periodType=flexible|fixed` 展示近三个月创建的活期/定期持仓明细，最多每类 10 页；此接口以创建时间过滤，因此始终标注覆盖范围，不能据此声称列齐更早持仓或全部 Earn 产品。
 - 查询失败为 Unavailable；成功且无数据为 No positions；未配置密钥单独显示。余额保留平台十进制字符串精度。
-- Bitget Worker 出口曾返回 HTTP 403。私人请求不能采用公开利率的浏览器回退。现通过 ssh c 上独立容器 `rate-monitor-relay` 转发，Worker 配置 `BITGET_RELAY_URL` 指向该服务的 HTTPS 路径。
+- Bitget Worker 出口曾返回 HTTP 403。私人请求不能采用公开利率的浏览器回退。现通过 ssh a 上独立容器 `rate-monitor-relay` 转发，Worker 配置 `BITGET_RELAY_URL` 指向该服务的 HTTPS 路径。
 - 只在打开仓位页或 Refresh 时请求，不定时采样。页面离开时清空 DOM 中的账户值；返回页面重新读取。
 
 官方文档：[Bitget Earn Account](https://www.bitget.com/docs/catalog/earn-classic-account/classic-earn-account#earn-account-assets)、[Bitget Crypto Loans](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。
 
-### ssh c 只读转发
+### ssh a 只读转发
 
 `server/relay.js` 在 `/opt/rate-monitor` 独立部署，Docker 容器仅加入已有入口网络，没有公开容器端口。现有 Caddy 在 `c.dark20.xyz/_rate-monitor/*` 转发到容器，原网站路由保留；Caddy 源配置及 compose override 保留了重建后的路由配置。
 
 转发服务校验同一 Access JWT 签名、AUD、issuer、邮箱及过期时间，私人接口仅允许借贷、Savings 总览、Savings 明细三个 GET 路径并校验 Access；明细 query 只允许 flexible/fixed、固定 limit=100 和数字 cursor。另有公开市场产品查询路径，仅允许 USDC/USDT 与 filter=available，仍须交易所签名，不接受任意上游或交易接口。平台签名由 Worker 生成；服务器临时转发 API key、签名与 passphrase，但不持久保存这些值或 Bitget API secret，且不把 Access JWT 转发到交易所。使用 HTTPS、禁用缓存和重定向、限制返回体大小和请求频率。服务器环境文件仅包含 Access 配置和允许邮箱，权限 600，不纳入仓库。
 
-部署时复制 `server/relay.js`、`server/compose.yml`、`worker/access-auth.js`（服务器文件名 access-auth.js）到服务器目录，并配置 relay.env，然后 `docker compose up -d`。更新 worker/access-auth.js 时须同步服务器文件。`server/install-route.py` 是现有 ssh c Caddy 入口的幂等配置脚本，会先保存原配置。
+部署时复制 `server/relay.js`、`server/compose.yml`、`worker/access-auth.js`（服务器文件名 access-auth.js）到服务器目录，并配置 relay.env，然后 `docker compose up -d`。更新 worker/access-auth.js 时须同步服务器文件。入口服务必须用 `docker compose -f compose.yml -f compose.override.yml up -d --no-deps web` 启动，确保加载 Caddyfile 挂载；只指定主 compose 文件会遗漏转发路由。`server/install-route.py` 是现有 ssh a Caddy 入口的幂等配置脚本，会先保存原配置。
 
 ## 同页 Rates / Positions
 
@@ -118,7 +118,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 
 ## Bitget Flexible Earn 利率
 
-- `GET /api/v3/earn/savings/product?coin=USDC|USDT&filter=available` 需要 Bitget 只读密钥签名，由 Worker 使用既有 Secrets 签名，经 ssh c 转发。此固定市场查询不依赖用户登录；所有仓位接口的 JWT 限制保持不变，密钥及签名不返回前端。
+- `GET /api/v3/earn/savings/product?coin=USDC|USDT&filter=available` 需要 Bitget 只读密钥签名，由 Worker 使用既有 Secrets 签名，经 ssh a 转发。此固定市场查询不依赖用户登录；所有仓位接口的 JWT 限制保持不变，密钥及签名不返回前端。
 - 仅选择 `periodType=flexible`、`productLevel=normal` 的普通用户产品，不用新用户、VIP、定期活动利率替代。存在多个普通活期方案时保留各自独立档位，按各方案最高档 APR 自动选择最高的一个（相同则保留接口顺序），完整展示该方案分档，不提供下拉框，也不把不同方案的档位混在一起。
 - `apyList.currentApy` 按百分数转成小数（6.00 → 0.06），每个档位为完整年化，不是叠加奖励。按 `minStepVal` / `maxStepVal` 展示分档。Bitget 官方 Savings 说明将收益口径称为 APR，按日计算利息，不将字段名直接当成复利 APY。
 - 有限的最后一档上限保留为覆盖边界；不推测覆盖范围之外的利率。
@@ -152,3 +152,5 @@ Bitget 的 `borrow-ongoing` 读取 `pledgeRate`（当前 LTV）、`supRate`（�
 Bitget v3 Savings 持仓实际提供 `totalProfit`、`lastProfit`、`interestCoin`。只读适配器保留收益原始精度及收益币种，Earn Positions 在持仓金额下方仅显示 Earned（累计）；字段缺失或无收益币种时不推算、不补零。收益只属于接口返回的该持仓，不表示账户完整历史收益。
 
 Loan 列表的最低成功 APR 标记 `min`；Earn 列表按首档 APR 比较，最高者仅在首档后标记 `max`，并列均标记。错误、未配置或非法利率不参与比较。
+
+2026-11-08 核对：relay 容器及配置已在 ssh a，故障来自迁移时入口容器仅加载主 compose 文件，遗漏 Caddyfile 的 override 挂载。已验证持久化配置并重建入口 web 容器加载两份配置，继续使用 `https://c.dark20.xyz/_rate-monitor`，Worker 地址无需修改。匿名仓位请求仍返回 401 JSON。
