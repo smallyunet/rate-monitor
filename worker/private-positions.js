@@ -108,26 +108,26 @@ export async function bitgetSavings(env, fetcher) {
 const safeErrors = new Set(['invalid_data','network_error','upstream_error','upstream_forbidden','credentials_error','rate_limited','clock_error','region_restricted']);
 export async function collectPositions(env, fetcher, binanceGet) {
   const tasks = [
-    ['Binance', 'Flexible Loan', !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), async () => {
+    { platform: 'Binance', product: 'Flexible Loan', configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), read: async () => {
       const result = await paginatedBinance(binanceGet, '/sapi/v2/loan/flexible/ongoing/orders', 'limit');
       return { ...result, rows: binanceLoans(result.rows) };
-    }],
-    ['Binance', 'Flexible Earn', !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), async () => {
+    } },
+    { platform: 'Binance', product: 'Flexible Earn', configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), read: async () => {
       const result = await paginatedBinance(binanceGet, '/sapi/v1/simple-earn/flexible/position');
       return { ...result, rows: binanceEarn(result.rows) };
-    }],
-    ['Binance', 'Locked Earn', !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), async () => {
+    } },
+    { platform: 'Binance', product: 'Locked Earn', configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), read: async () => {
       const result = await paginatedBinance(binanceGet, '/sapi/v1/simple-earn/locked/position');
       return { ...result, rows: binanceEarn(result.rows, true) };
-    }],
-    ['Bitget', 'Flexible Loan', !!(env.BITGET_API_KEY && env.BITGET_API_SECRET && env.BITGET_API_PASSPHRASE), async () => ({
+    } },
+    { platform: 'Bitget', product: 'Flexible Loan', configured: !!(env.BITGET_API_KEY && env.BITGET_API_SECRET && env.BITGET_API_PASSPHRASE), read: async () => ({
       rows: bitgetLoans(await bitgetGet('/api/v3/loan/borrow-ongoing', env, fetcher)),
-    })],
-    ['Bitget', 'Savings', !!(env.BITGET_API_KEY && env.BITGET_API_SECRET && env.BITGET_API_PASSPHRASE), async () => bitgetSavings(env, fetcher)],
+    }) },
+    { platform: 'Bitget', product: 'Savings', configured: !!(env.BITGET_API_KEY && env.BITGET_API_SECRET && env.BITGET_API_PASSPHRASE), read: async () => bitgetSavings(env, fetcher) },
   ];
   // Binance USER_DATA endpoints have strict per-account limits; serialize within a request.
   const sections = [];
-  for (const [platform, product, configured, read] of tasks) {
+  for (const { platform, product, configured, read } of tasks) {
     if (!configured) { sections.push({ platform, product, status: 'not_configured', rows: [] }); continue; }
     try {
       const result = await read();
