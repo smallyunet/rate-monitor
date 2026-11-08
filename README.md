@@ -154,3 +154,5 @@ Bitget v3 Savings 持仓实际提供 `totalProfit`、`lastProfit`、`interestCoi
 Loan 列表的最低成功 APR 标记 `min`；Earn 列表按首档 APR 比较，最高者仅在首档后标记 `max`，并列均标记。错误、未配置或非法利率不参与比较。
 
 2026-11-08 核对：relay 容器及配置已在 ssh a，故障来自迁移时入口容器仅加载主 compose 文件，遗漏 Caddyfile 的 override 挂载。已验证持久化配置并重建入口 web 容器加载两份配置，继续使用 `https://c.dark20.xyz/_rate-monitor`，Worker 地址无需修改。匿名仓位请求仍返回 401 JSON。
+
+Binance Loan 风险列使用 ongoing orders 的 `currentLTV`，并按 `collateralCoin` 匹配 `/sapi/v2/loan/flexible/collateral/data` 的 `marginCallLTV` / `liquidationLTV`。Binance 比率统一转换成百分数（0.57 → 57%），与 Bitget 共用展示。阈值接口失败时保留当前 LTV 和借款数据，缺失阈值显示 —。

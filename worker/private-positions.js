@@ -9,9 +9,19 @@ function coin(value) {
   return value.toUpperCase();
 }
 const optionalDecimal = value => value == null ? null : decimal(value);
-export function binanceLoans(rows) {
+// Binance LTV fields are ratios (0.57 = 57%); shift the decimal without rounding.
+function ratioPercent(value) {
+  if (riskPercent(value) === null) return null;
+  const [whole, fraction = ''] = value.split('.');
+  const integer = (whole + fraction.padEnd(2, '0').slice(0, 2)).replace(/^0+(?=\d)/, '');
+  const remainder = fraction.slice(2).replace(/0+$/, '');
+  return integer + (remainder ? '.' + remainder : '');
+}
+export function binanceLoans(rows, collateralRows = []) {
   return rows.map(r => ({ collateral: coin(r.collateralCoin), collateralAmount: decimal(r.collateralAmount),
-    asset: coin(r.loanCoin), debt: decimal(r.totalDebt), loan: null, interest: null, ltv: optionalDecimal(r.currentLTV) }));
+    asset: coin(r.loanCoin), debt: decimal(r.totalDebt), loan: null, interest: null, ltv: riskPercent(r.currentLTV), currentLtvPercent: ratioPercent(r.currentLTV),
+    marginCallLtvPercent: ratioPercent(collateralRows.find(c => c.collateralCoin === r.collateralCoin)?.marginCallLTV),
+    liquidationLtvPercent: ratioPercent(collateralRows.find(c => c.collateralCoin === r.collateralCoin)?.liquidationLTV) }));
 }
 export function binanceEarn(rows, locked = false) {
   return rows.map(r => ({ asset: coin(r.asset), amount: decimal(locked ? r.amount : r.totalAmount),
@@ -110,7 +120,17 @@ export async function collectPositions(env, fetcher, binanceGet) {
   const tasks = [
     { platform: 'Binance', product: 'Flexible Loan', configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), read: async () => {
       const result = await paginatedBinance(binanceGet, '/sapi/v2/loan/flexible/ongoing/orders', 'limit');
-      return { ...result, rows: binanceLoans(result.rows) };
+      let collateralRows = [];
+      if (result.rows.length) {
+        try {
+          const collateral = await binanceGet('/sapi/v2/loan/flexible/collateral/data', {});
+          if (Array.isArray(collateral?.rows)) collateralRows = collateral.rows;
+        } catch { /* Keep debt and current LTV visible when threshold lookup fails. */ }
+      }
+      const rows = binanceLoans(result.rows, collateralRows);
+      const missingRisk = rows.some(row => row.marginCallLtvPercent === null || row.liquidationLtvPercent === null);
+      return { ...result, rows, partial: result.partial || missingRisk,
+        ...(missingRisk ? { coverage: 'Risk thresholds unavailable' } : {}) };
     } },
     { platform: 'Binance', product: 'Flexible Earn', configured: !!(env.BINANCE_API_KEY && env.BINANCE_API_SECRET), read: async () => {
       const result = await paginatedBinance(binanceGet, '/sapi/v1/simple-earn/flexible/position');

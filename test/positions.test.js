@@ -154,12 +154,31 @@ test('Binance Flexible Loan collection reads all pages and empty success stays d
  const raw = {collateralCoin:'BTC',collateralAmount:'0.1',loanCoin:'USDC',totalDebt:'1000.12',currentLTV:'0.4'};
  const data = await collectPositions({BINANCE_API_KEY:'key',BINANCE_API_SECRET:'secret'},undefined,async (path, params) => {
   calls.push([path, params]);
+  if (path.endsWith('/collateral/data')) return {rows:[{collateralCoin:'BTC',marginCallLTV:'0.85',liquidationLTV:'0.91'}],total:1};
   if (path.includes('/loan/')) return {rows:params.current === '1' ? Array(100).fill(raw) : [{...raw,totalDebt:'200'}],total:101};
   return {rows:[],total:0};
  });
  const section = data.sections.find(section => section.platform === 'Binance' && section.product === 'Flexible Loan');
  assert.equal(section.status,'ok'); assert.equal(section.rows.length,101); assert.equal(section.rows[100].debt,'200');
- assert.deepEqual(calls.filter(([path])=>path.includes('/loan/')).map(([,params])=>params),[{current:'1',limit:'100'},{current:'2',limit:'100'}]);
+ assert.deepEqual(calls.filter(([path])=>path.endsWith('/ongoing/orders')).map(([,params])=>params),[{current:'1',limit:'100'},{current:'2',limit:'100'}]);
  const empty = await collectPositions({BINANCE_API_KEY:'key',BINANCE_API_SECRET:'secret'},undefined,async()=>({rows:[],total:0}));
  assert.equal(empty.sections[0].status,'ok'); assert.deepEqual(empty.sections[0].rows,[]);
+});
+
+test('Binance LTV ratios map to risk percentages without floating-point drift', async () => {
+ const { loanRisk } = await import('../web/positions.js');
+ const raw = {collateralCoin:'BTC',collateralAmount:'0.052',loanCoin:'USDC',totalDebt:'2000.0122696',currentLTV:'0.5077'};
+ const row = binanceLoans([raw],[{collateralCoin:'ETH',marginCallLTV:'0.1',liquidationLTV:'0.2'},{collateralCoin:'BTC',marginCallLTV:'0.85',liquidationLTV:'0.91'}])[0];
+ assert.equal(row.currentLtvPercent,'50.77'); assert.equal(row.marginCallLtvPercent,'85'); assert.equal(row.liquidationLtvPercent,'91');
+ assert.equal(loanRisk(row).state,'normal'); assert.equal(row.debt,'2000.0122696');
+ assert.equal(binanceLoans([{...raw,currentLTV:'0.57'}])[0].currentLtvPercent,'57');
+ assert.equal(binanceLoans([{...raw,currentLTV:'0'}])[0].currentLtvPercent,'0');
+ assert.equal(binanceLoans([{...raw,currentLTV:''}])[0].currentLtvPercent,null);
+ const data = await collectPositions({BINANCE_API_KEY:'key',BINANCE_API_SECRET:'secret'},undefined,async path => {
+  if (path.endsWith('/ongoing/orders')) return {rows:[raw],total:1};
+  if (path.endsWith('/collateral/data')) throw Error('unavailable');
+  return {rows:[],total:0};
+ });
+ assert.equal(data.sections[0].status,'partial'); assert.equal(data.sections[0].rows[0].currentLtvPercent,'50.77');
+ assert.equal(data.sections[0].rows[0].liquidationLtvPercent,null); assert.equal(data.sections[0].rows[0].debt,'2000.0122696');
 });
