@@ -156,3 +156,7 @@ Loan 列表的最低成功 APR 标记 `min`；Earn 列表按首档 APR 比较，
 2026-11-08 核对：relay 容器及配置已在 ssh a，故障来自迁移时入口容器仅加载主 compose 文件，遗漏 Caddyfile 的 override 挂载。已验证持久化配置并重建入口 web 容器加载两份配置，继续使用 `https://c.dark20.xyz/_rate-monitor`，Worker 地址无需修改。匿名仓位请求仍返回 401 JSON。
 
 Binance Loan 风险列使用 ongoing orders 的 `currentLTV`，并按 `collateralCoin` 匹配 `/sapi/v2/loan/flexible/collateral/data` 的 `marginCallLTV` / `liquidationLTV`。Binance 比率统一转换成百分数（0.57 → 57%），与 Bitget 共用展示。阈值接口失败时保留当前 LTV 和借款数据，缺失阈值显示 —。
+
+### 仓位 APR 标签
+
+Earn 持仓金额及 Loan 债务金额后显示黄色小号年化标签。Binance Flexible Earn 从持仓的基础年化和奖励档位按实际金额加权，抵押占用部分按基础年化；Locked Earn 保留接口 APY 标签。Bitget Savings 使用该持仓返回的 apy 分档按持仓金额加权，不替换成市场列表的最高方案。Bitget Loan 将持仓小时百分比利率按 24×365 年化；Binance Flexible Loan 匹配本次刷新成功的同平台、借款币、抵押币市场 APR。未知或不完整的利率显示 APR —，不会补零。

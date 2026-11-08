@@ -144,6 +144,7 @@ function render(products) {
     bodies[p.kind].append(row);
   }
   Object.values(bodies).forEach(mergePlatformCells);
+  positionsView.setRates(products);
   for (const kind of ['loan', 'earn']) {
     const list = products.filter(p => p.kind === kind);
     document.querySelector(`[data-rate-status="${kind}"]`).textContent = list.some(p => p.status === 'loading')
@@ -188,14 +189,14 @@ setInterval(() => {
     if (node.textContent !== label) node.textContent = label;
   }
 }, 1000);
-const refreshPositions = mountPositions({ el, logoLabel });
+const positionsView = mountPositions({ el, logoLabel });
 const refreshButton = document.querySelector('#refresh');
 async function refreshAll() {
   if (refreshButton.disabled) return;
   refreshButton.disabled = true;
   refreshButton.textContent = 'Refreshing…';
   refreshButton.setAttribute('aria-busy', 'true');
-  try { await Promise.allSettled([refresh(), refreshPositions()]); }
+  try { await Promise.allSettled([refresh(), positionsView.refresh()]); }
   finally {
     refreshButton.disabled = false;
     refreshButton.textContent = 'Refresh';

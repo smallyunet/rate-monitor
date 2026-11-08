@@ -36,6 +36,15 @@ export function earnProfitLines(row) {
     .map(([label, value]) => ({ label, value, asset: row.interestAsset }));
 }
 
+export function positionRate(row, section, rates) {
+  if (Number.isFinite(row.positionRate) && row.positionRate >= 0) return { value: row.positionRate, label: row.positionRateLabel === 'APY' ? 'APY' : 'APR' };
+  if (section.platform === 'Binance' && section.product === 'Flexible Loan') {
+    const matches = rates.filter(p => p.status === 'ok' && p.kind === 'loan' && p.platform === section.platform && p.asset === row.asset && p.collateral === row.collateral && Number.isFinite(p.apr) && p.apr >= 0);
+    if (matches.length === 1) return { value: matches[0].apr, label: 'APR' };
+  }
+  return null;
+}
+
 // Merge adjacent platform cells on desktop. Repeated cells remain available for mobile cards.
 export function mergePlatformCells(body) {
   const rows = Array.from(body.children);
@@ -58,9 +67,10 @@ export function mountPositions({ el, logoLabel }) {
   const setStatus = text => Object.values(statuses).forEach(status => { status.textContent = text; });
   const signIn = document.querySelector('#sign-in');
   const signOut = document.querySelector('#sign-out');
-  let controller, generation = 0, signingOut = false;
+  let controller, generation = 0, signingOut = false, latestSections = null, latestRates = [];
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
   function clear() {
+    latestSections = null;
     Object.values(contents).forEach(content => { content.replaceChildren(); content.hidden = true; });
     signOut.hidden = true; signIn.hidden = false;
   }
@@ -70,10 +80,18 @@ export function mountPositions({ el, logoLabel }) {
     wrapper.append(typeof value === 'string' ? document.createTextNode(value) : value);
     td.append(wrapper); row.append(td);
   }
-  function amountLine(label, value, asset, secondary = false) {
+  function amountLine(label, value, asset, secondary = false, apr = undefined) {
     const line = el('div', secondary ? 'secondary' : '');
     if (label) line.append(document.createTextNode(label));
-    line.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
+    const group = el('span', apr !== undefined ? 'position-rate-value' : '');
+    group.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
+    line.append(group);
+    if (apr !== undefined) {
+      const text = apr ? `${apr.label} ${(apr.value * 100).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%` : 'APR —';
+      const badge = el('span', 'rate-badge position-apr', text);
+      badge.title = apr ? 'Current annualized rate; tiered Earn is weighted by the held amount. Collateral receives the base rate.' : 'Current position rate unavailable';
+      group.append(badge);
+    }
     return line;
   }
   function riskView(row) {
@@ -119,12 +137,13 @@ export function mountPositions({ el, logoLabel }) {
         } else assets.textContent = '—';
         cell(row, labels[2], assets);
         const details = el('div', 'position-values');
+        const apr = positionRate(r, section, latestRates);
         if (r.collateral) {
           details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
-          details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
+          details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset, false, apr));
           if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
-          details.append(amountLine('', r.amount, r.asset));
+          details.append(amountLine('', r.amount, r.asset, false, apr));
           if (positiveAmount(r.collateralAmount)) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
           for (const profit of earnProfitLines(r)) details.append(amountLine(profit.label, profit.value, profit.asset, true));
         }
@@ -146,6 +165,7 @@ export function mountPositions({ el, logoLabel }) {
     content.hidden = false;
   }
   function render(sections) {
+    latestSections = sections;
     for (const kind of ['loan', 'earn']) {
       const group = sections.filter(section => positionKind(section) === kind);
       renderGroup(contents[kind], group, kind);
@@ -184,5 +204,8 @@ export function mountPositions({ el, logoLabel }) {
   });
   window.addEventListener('pagehide', () => { ++generation; controller?.abort(); clear(); });
   window.addEventListener('pageshow', event => { if (event.persisted) load(); });
-  return load;
+  return { refresh: load, setRates(products) {
+    latestRates = products;
+    if (latestSections) render(latestSections);
+  } };
 }

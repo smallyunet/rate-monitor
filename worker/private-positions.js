@@ -1,3 +1,4 @@
+import { binancePositionRate, bitgetPositionRate, bitgetLoanApr } from './position-rates.js';
 import { verifyPositionsIdentity } from './access-auth.js';
 
 export function decimal(value) {
@@ -25,7 +26,7 @@ export function binanceLoans(rows, collateralRows = []) {
 }
 export function binanceEarn(rows, locked = false) {
   return rows.map(r => ({ asset: coin(r.asset), amount: decimal(locked ? r.amount : r.totalAmount),
-    collateralAmount: locked ? null : optionalDecimal(r.collateralAmount), product: locked ? 'Locked Earn' : 'Flexible Earn' }));
+    collateralAmount: locked ? null : optionalDecimal(r.collateralAmount), product: locked ? 'Locked Earn' : 'Flexible Earn', ...binancePositionRate(r, locked) }));
 }
 // Risk fields are optional percentages; malformed risk data must not hide balances.
 function riskPercent(value) {
@@ -34,7 +35,7 @@ function riskPercent(value) {
 export function bitgetLoans(rows) {
   if (!Array.isArray(rows)) throw new Error('invalid_data');
   return rows.map(r => ({ collateral: coin(r.pledgeCoin), collateralAmount: decimal(r.pledgeAmount),
-    asset: coin(r.loanCoin), loan: decimal(r.loanAmount), interest: decimal(r.interestAmount), debt: null, ltv: null,
+    asset: coin(r.loanCoin), loan: decimal(r.loanAmount), interest: decimal(r.interestAmount), debt: null, ltv: null, positionRate: bitgetLoanApr(r), positionRateLabel: 'APR',
     currentLtvPercent: riskPercent(r.pledgeRate), marginCallLtvPercent: riskPercent(r.supRate), liquidationLtvPercent: riskPercent(r.forceRate) }));
 }
 export async function paginatedBinance(get, path, sizeName = 'size') {
@@ -104,7 +105,7 @@ export async function bitgetSavings(env, fetcher) {
       if (!Array.isArray(data?.resultList)) throw new Error('invalid_data');
       for (const r of data.resultList) {
         if (r.status !== 'in_holding') continue;
-        rows.push({ asset: coin(r.productCoin), amount: decimal(r.holdAmount), product: periodType === 'flexible' ? 'Flexible Savings' : 'Fixed Savings', collateralAmount: null, ...savingsEarnings(r) });
+        rows.push({ asset: coin(r.productCoin), amount: decimal(r.holdAmount), product: periodType === 'flexible' ? 'Flexible Savings' : 'Fixed Savings', collateralAmount: null, ...savingsEarnings(r), ...bitgetPositionRate(r) });
       }
       if (data.resultList.length < 100 || !data.endId) break;
       if (typeof data.endId !== 'string' || !/^\d{1,40}$/.test(data.endId) || seen.has(data.endId)) break;
