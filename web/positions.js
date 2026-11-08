@@ -41,7 +41,6 @@ export function mountPositions({ el, logoLabel }) {
   const signIn = document.querySelector('#sign-in');
   const signOut = document.querySelector('#sign-out');
   let controller, generation = 0, signingOut = false;
-  const labels = ['Platform', 'Product', 'Assets', 'Position', 'Updated'];
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
   function clear() {
     Object.values(contents).forEach(content => { content.replaceChildren(); content.hidden = true; });
@@ -60,9 +59,10 @@ export function mountPositions({ el, logoLabel }) {
     return line;
   }
   function renderGroup(content, sections, kind) {
+    const labels = ['Platform', 'Product', 'Assets', 'Position', ...(kind === 'loan' ? ['Interest'] : []), 'Updated'];
     const table = el('table'); table.setAttribute('aria-label', `${kind === 'loan' ? 'Loan' : 'Earn'} positions`); table.setAttribute('role', 'table');
     const head = el('thead'); const heading = el('tr');
-    for (const name of labels) { const th = el('th', '', name); th.scope = 'col'; heading.append(th); }
+    for (const name of labels) { const th = el('th', '', name); th.scope = 'col'; th.dataset.label = name; heading.append(th); }
     head.append(heading); table.append(head);
     const body = el('tbody'); table.append(body);
     const summaries = [];
@@ -93,15 +93,15 @@ export function mountPositions({ el, logoLabel }) {
         if (r.collateral) {
           details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
           details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset));
-          if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
           details.append(amountLine('', r.amount, r.asset));
           if (r.collateralAmount != null) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
         }
         cell(row, labels[3], details);
+        if (kind === 'loan') cell(row, 'Interest', amountLine('', r.interest, r.asset));
         const updated = el('span', '', '—');
         if (section.fetchedAt) { updated.dataset.updatedAt = section.fetchedAt; updated.title = new Date(section.fetchedAt).toISOString(); }
-        cell(row, labels[4], updated); body.append(row);
+        cell(row, 'Updated', updated); body.append(row);
       }
       if (section.status === 'partial' && (records.length || total !== null || section.estimatedValue === undefined)) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
     }
