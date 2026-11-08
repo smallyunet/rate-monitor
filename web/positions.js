@@ -55,16 +55,14 @@ export function mergePlatformCells(body) {
 export function mountPositions({ el, logoLabel }) {
   const contents = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-positions-content="${kind}"]`)]));
   const statuses = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-position-status="${kind}"]`)]));
-  const refreshes = Array.from(document.querySelectorAll('[data-positions-refresh]'));
   const setStatus = text => Object.values(statuses).forEach(status => { status.textContent = text; });
-  const setRefreshing = disabled => refreshes.forEach(button => { button.disabled = disabled; });
   const signIn = document.querySelector('#sign-in');
   const signOut = document.querySelector('#sign-out');
   let controller, generation = 0, signingOut = false;
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
   function clear() {
     Object.values(contents).forEach(content => { content.replaceChildren(); content.hidden = true; });
-    refreshes.forEach(button => { button.hidden = true; }); signOut.hidden = true; signIn.hidden = false;
+    signOut.hidden = true; signIn.hidden = false;
   }
   function cell(row, label, value) {
     const td = el('td'); td.dataset.label = label; td.setAttribute('role', 'cell');
@@ -159,7 +157,7 @@ export function mountPositions({ el, logoLabel }) {
     if (signingOut) return;
     controller?.abort(); controller = new AbortController();
     const current = ++generation;
-    setRefreshing(true); setStatus('Loading…');
+    document.querySelector('#positions').setAttribute('aria-busy', 'true'); setStatus('Loading…');
     try {
       const response = await fetch('/private/api/positions', { cache: 'no-store', redirect: 'manual', signal: controller.signal });
       if (current !== generation) return;
@@ -169,13 +167,12 @@ export function mountPositions({ el, logoLabel }) {
       if (current !== generation) return;
       if (!Array.isArray(data.sections) || data.sections.some(s => !Array.isArray(s.rows))) throw new Error();
       render(data.sections);
-      signIn.hidden = true; signOut.hidden = false; refreshes.forEach(button => { button.hidden = false; });
+      signIn.hidden = true; signOut.hidden = false;
     } catch (error) {
       if (current !== generation || error.name === 'AbortError') return;
       clear(); setStatus('Positions unavailable');
-    } finally { if (current === generation) setRefreshing(false); }
+    } finally { if (current === generation) document.querySelector('#positions').setAttribute('aria-busy', 'false'); }
   }
-  refreshes.forEach(button => button.addEventListener('click', load));
   signOut.addEventListener('click', async () => {
     signingOut = true; ++generation; controller?.abort(); clear(); setStatus('Signing out…'); signIn.hidden = true;
     try {
@@ -187,5 +184,5 @@ export function mountPositions({ el, logoLabel }) {
   });
   window.addEventListener('pagehide', () => { ++generation; controller?.abort(); clear(); });
   window.addEventListener('pageshow', event => { if (event.persisted) load(); });
-  load();
+  return load;
 }

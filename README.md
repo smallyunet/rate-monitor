@@ -128,7 +128,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 
 ## OKX 市场利率与深色看板
 
-桌面宽屏采用深色双栏：左侧 Loan / Earn 上下两个列表，右侧 Loan Positions / Earn Positions 上下两个列表；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录和独立刷新。
+桌面宽屏采用深色双栏：左侧 Loan / Earn 上下两个列表，右侧 Loan Positions / Earn Positions 上下两个列表；1160px 以下上下排列，手机使用紧凑双列信息卡。仓位继续只显示非零记录，失败和 partial 提示保留。保留登录，顶部提供全局刷新。
 
 OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需密钥：
 
@@ -139,7 +139,7 @@ OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需�
 
 来源：[OKX V5 Simple Earn 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-public-borrow-history-public)、[Simple Earn Flexible 收益与服务费](https://www.okx.com/en-us/help/simple-earn-faq)、[OKX Loan](https://www.okx.com/loan)。
 
-Loan 与 Earn 分别展示各自的产品数量和分档；两处 Refresh 复用一次完整利率刷新。Bitget Savings 的账户总估值不再作为仓位行插入明细列表，而是在独立的 Total value 汇总栏展示；它与 Flexible / Fixed Savings 明细属于总额和组成部分，不相加。持仓明细仍保留近三个月创建范围的 partial 标记，历史持仓缺失时总估值不会被静默丢弃。
+Loan 与 Earn 分别展示各自的产品数量和分档；顶部全局 Refresh 同时刷新全部利率和仓位。Bitget Savings 的账户总估值不再作为仓位行插入明细列表，而是在独立的 Total value 汇总栏展示；它与 Flexible / Fixed Savings 明细属于总额和组成部分，不相加。持仓明细仍保留近三个月创建范围的 partial 标记，历史持仓缺失时总估值不会被静默丢弃。
 
 ### Loan Positions 清算风险
 

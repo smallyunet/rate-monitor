@@ -13,8 +13,8 @@ a:hover { color: var(--accent); }
 nav { gap: 16px; font-size: 11px; }
 button { padding: 4px 9px; border: 1px solid #3b424d; border-radius: 4px; background: var(--raised); color: inherit; font: inherit; font-size: 11px; cursor: pointer; }
 button:hover { border-color: #697482; background: #2b3139; }
-[data-rates-refresh], [data-positions-refresh] { color: var(--accent); border-color: #5c4c1d; background: #30291a; }
-[data-rates-refresh]:hover, [data-positions-refresh]:hover { background: #40351a; border-color: #947620; }
+#refresh { color: var(--accent); border-color: #5c4c1d; background: #30291a; }
+#refresh:hover { background: #40351a; border-color: #947620; }
 button:disabled { opacity: .6; cursor: wait; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .dashboard { display: grid; grid-template-columns: minmax(0, min(780px, 50%)) minmax(0, 1fr); gap: 16px; align-items: start; }

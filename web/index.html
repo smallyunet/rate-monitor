@@ -10,26 +10,26 @@
 </head>
 <body>
   <main>
-    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a></nav></header>
+    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button" aria-label="Refresh rates and positions">Refresh</button></nav></header>
     <div class="dashboard">
     <div id="rates" class="rates-column" aria-busy="true">
     <section class="panel rates-panel" aria-labelledby="loan-title">
-      <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="loan-title">Loan</h2><span data-rate-status="loan" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span data-rates-updated class="updated"></span><button id="refresh" data-rates-refresh type="button">Refresh</button></div></header>
+      <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="loan-title">Loan</h2><span data-rate-status="loan" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span data-rates-updated class="updated"></span></div></header>
       <div class="table-wrap"><table class="rates-table" role="table" aria-label="Loan rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="loan-rows"></tbody></table></div>
     </section>
     <section class="panel rates-panel" aria-labelledby="earn-title">
-      <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="earn-title">Earn</h2><span data-rate-status="earn" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span data-rates-updated class="updated"></span><button id="refresh-earn" data-rates-refresh type="button">Refresh</button></div></header>
+      <header class="panel-heading"><div class="panel-title"><h2 class="section-title" id="earn-title">Earn</h2><span data-rate-status="earn" class="status-badge" aria-live="polite">Loading…</span></div><div class="panel-actions"><span data-rates-updated class="updated"></span></div></header>
       <div class="table-wrap"><table class="rates-table" role="table" aria-label="Earn rates"><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Platform</th><th role="columnheader" scope="col">Product</th><th role="columnheader" scope="col">Assets</th><th role="columnheader" scope="col">Tier APR</th><th role="columnheader" scope="col">Updated</th></tr></thead><tbody role="rowgroup" id="earn-rows"></tbody></table></div>
     </section>
     <div id="config" class="notice" hidden>Binance API key required.</div>
     </div>
     <div id="positions" class="positions-column">
     <section class="panel positions-panel" aria-labelledby="loan-positions-title">
-      <header class="positions-header"><div class="panel-title"><h2 class="section-title" id="loan-positions-title">Loan Positions</h2><span data-position-status="loan" class="status-badge" role="status"></span></div><button data-positions-refresh hidden type="button">Refresh</button></header>
+      <header class="positions-header"><div class="panel-title"><h2 class="section-title" id="loan-positions-title">Loan Positions</h2><span data-position-status="loan" class="status-badge" role="status"></span></div></header>
       <div data-positions-content="loan" hidden></div>
     </section>
     <section class="panel positions-panel" aria-labelledby="earn-positions-title">
-      <header class="positions-header"><div class="panel-title"><h2 class="section-title" id="earn-positions-title">Earn Positions</h2><span data-position-status="earn" class="status-badge" role="status"></span></div><button data-positions-refresh hidden type="button">Refresh</button></header>
+      <header class="positions-header"><div class="panel-title"><h2 class="section-title" id="earn-positions-title">Earn Positions</h2><span data-position-status="earn" class="status-badge" role="status"></span></div></header>
       <div data-positions-content="earn" hidden></div>
     </section>
     </div>

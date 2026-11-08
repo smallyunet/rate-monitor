@@ -148,3 +148,18 @@ test('Savings earnings preserve exact values and require the actual interest coi
  const data = await bitgetSavings({BITGET_API_KEY:'key',BITGET_API_SECRET:'secret',BITGET_API_PASSPHRASE:'pass'},async url => Response.json({code:'00000',data:url.endsWith('/account') ? {usdtAmount:'1000'} : {resultList:new URL(url).searchParams.get('periodType') === 'flexible' ? [{productCoin:'USDC',holdAmount:'1000',status:'in_holding',interestCoin:'USDT',lastProfit:'0.2',totalProfit:'1.2'}] : []}}));
  assert.equal(data.rows[0].asset,'USDC'); assert.equal(data.rows[0].interestAsset,'USDT'); assert.equal(data.rows[0].totalProfit,'1.2');
 });
+
+test('Binance Flexible Loan collection reads all pages and empty success stays distinct from failure', async () => {
+ const calls = [];
+ const raw = {collateralCoin:'BTC',collateralAmount:'0.1',loanCoin:'USDC',totalDebt:'1000.12',currentLTV:'0.4'};
+ const data = await collectPositions({BINANCE_API_KEY:'key',BINANCE_API_SECRET:'secret'},undefined,async (path, params) => {
+  calls.push([path, params]);
+  if (path.includes('/loan/')) return {rows:params.current === '1' ? Array(100).fill(raw) : [{...raw,totalDebt:'200'}],total:101};
+  return {rows:[],total:0};
+ });
+ const section = data.sections.find(section => section.platform === 'Binance' && section.product === 'Flexible Loan');
+ assert.equal(section.status,'ok'); assert.equal(section.rows.length,101); assert.equal(section.rows[100].debt,'200');
+ assert.deepEqual(calls.filter(([path])=>path.includes('/loan/')).map(([,params])=>params),[{current:'1',limit:'100'},{current:'2',limit:'100'}]);
+ const empty = await collectPositions({BINANCE_API_KEY:'key',BINANCE_API_SECRET:'secret'},undefined,async()=>({rows:[],total:0}));
+ assert.equal(empty.sections[0].status,'ok'); assert.deepEqual(empty.sections[0].rows,[]);
+});

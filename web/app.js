@@ -151,8 +151,6 @@ function render(products) {
   }
 }
 async function refresh() {
-  const buttons = document.querySelectorAll('[data-rates-refresh]');
-  buttons.forEach(button => { button.disabled = true; });
   document.querySelector('#rates').setAttribute('aria-busy', 'true');
   for (const node of document.querySelectorAll('[data-rates-updated]')) {
     node.textContent = ''; delete node.dataset.updatedAt; node.removeAttribute('title');
@@ -179,11 +177,10 @@ async function refresh() {
     render(descriptors.map(p => ({ ...p, status: 'error', apr: null, error: 'service_error' })));
     document.querySelectorAll('[data-rate-status]').forEach(node => { node.textContent = 'Connection failed'; });
   } finally {
-    buttons.forEach(button => { button.disabled = false; });
     document.querySelector('#rates').setAttribute('aria-busy', 'false');
   }
 }
-document.querySelectorAll('[data-rates-refresh]').forEach(button => button.addEventListener('click', refresh));
+
 // Advance the age labels locally; this does not fetch or refresh platform rates.
 setInterval(() => {
   for (const node of document.querySelectorAll('[data-updated-at]')) {
@@ -191,6 +188,19 @@ setInterval(() => {
     if (node.textContent !== label) node.textContent = label;
   }
 }, 1000);
-refresh();
-
-mountPositions({ el, logoLabel });
+const refreshPositions = mountPositions({ el, logoLabel });
+const refreshButton = document.querySelector('#refresh');
+async function refreshAll() {
+  if (refreshButton.disabled) return;
+  refreshButton.disabled = true;
+  refreshButton.textContent = 'Refreshing…';
+  refreshButton.setAttribute('aria-busy', 'true');
+  try { await Promise.allSettled([refresh(), refreshPositions()]); }
+  finally {
+    refreshButton.disabled = false;
+    refreshButton.textContent = 'Refresh';
+    refreshButton.setAttribute('aria-busy', 'false');
+  }
+}
+refreshButton.addEventListener('click', refreshAll);
+refreshAll();
