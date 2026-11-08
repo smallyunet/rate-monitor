@@ -140,3 +140,13 @@ tbody tr:hover { background: var(--hover); }
 @media (max-width: 680px) {
   [data-positions-content] td[data-label="Position"] { grid-column: 1 / -1; }
 }
+
+.portfolio-table { font-variant-numeric: tabular-nums; }
+.portfolio-table th { width: 150px; background: transparent; font-size: 12px; }
+.portfolio-table td { white-space: nowrap; }
+.portfolio-table td.secondary { font-size: 11px; }
+@media (max-width: 680px) {
+  .portfolio-table tr { grid-template-columns: 1fr; gap: 4px; }
+  .portfolio-table th, .portfolio-table td { width: auto; padding: 0; border: 0; white-space: normal; }
+  .portfolio-table td::before { display: none; }
+}

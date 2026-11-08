@@ -71,6 +71,8 @@ export function mountPositions({ el, logoLabel }) {
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
   function clear() {
     latestSections = null;
+    document.querySelector('#portfolio-summary').hidden = true;
+    document.querySelector('#portfolio-content').replaceChildren();
     Object.values(contents).forEach(content => { content.replaceChildren(); content.hidden = true; });
     signOut.hidden = true; signIn.hidden = false;
   }
@@ -164,8 +166,35 @@ export function mountPositions({ el, logoLabel }) {
     if (coverage.childElementCount) content.append(coverage);
     content.hidden = false;
   }
+  function renderPortfolio(sections) {
+    const summary = portfolioSummary(sections, latestRates);
+    const content = document.querySelector('#portfolio-content');
+    const money = value => value === null ? '—' : `≈ $${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const percent = value => value === null ? '—' : `${(value * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+    const pp = value => value === null ? '—' : `${(value * 100).toFixed(2)} pp`;
+    const table = el('table', 'portfolio-table'); table.setAttribute('aria-label', 'Portfolio summary');
+    const body = el('tbody'); table.append(body);
+    const add = (label, value, detail) => {
+      const row = el('tr');
+      const name = el('th', '', label); name.scope = 'row';
+      const amount = el('td', 'position-amount', value);
+      const note = el('td', 'secondary', detail);
+      row.append(name, amount, note); body.append(row);
+    };
+    add('Loan collateral', summary.collateral.map(([coin, amount]) => `${amount.toLocaleString('en-US', { maximumFractionDigits: 8 })} ${coin}`).join(' + ') || '—', `${money(summary.collateralUsd)} · implied by LTV`);
+    add('Outstanding debt', money(summary.debt), `Weighted APR ${percent(summary.borrowingApr)}`);
+    add('Stablecoin Earn', money(summary.earn), `Weighted APR ${percent(summary.earningApr)}`);
+    add('APR spread', pp(summary.spread), 'Earn APR − Loan APR');
+    add('Est. net APR', percent(summary.netApr), 'Annual net income / Stablecoin Earn');
+    add('Est. net income', money(summary.netAnnual === null ? null : summary.netAnnual / 365) + ' / day', `${money(summary.netAnnual === null ? null : summary.netAnnual / 12)} / month · ${money(summary.netAnnual)} / year`);
+    const wrap = el('div', 'table-wrap'); wrap.append(table);
+    content.replaceChildren(wrap, el('p', 'note', 'Visible positions only · USDC / USDT = $1 · Current APR held constant · Simple interest; excludes non-stablecoin Earn and fees.'));
+    if (summary.partial || !summary.supported) content.append(el('p', 'note', 'Partial coverage · Some sources have limited history or unavailable data; totals may be incomplete.'));
+    document.querySelector('#portfolio-summary').hidden = false;
+  }
   function render(sections) {
     latestSections = sections;
+    renderPortfolio(sections);
     for (const kind of ['loan', 'earn']) {
       const group = sections.filter(section => positionKind(section) === kind);
       renderGroup(contents[kind], group, kind);
@@ -208,4 +237,52 @@ export function mountPositions({ el, logoLabel }) {
     latestRates = products;
     if (latestSections) render(latestSections);
   } };
+}
+
+
+const stable = asset => ['USDC', 'USDT'].includes(asset);
+const number = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value)) ? Number(value) : null;
+// A snapshot estimate of visible positions, not account equity or realized P&L.
+export function portfolioSummary(sections, rates) {
+  const collateral = new Map();
+  let debt = 0, earn = 0, collateralUsd = 0, annualCost = 0, annualIncome = 0;
+  let loanPriced = true, earnPriced = true, valuation = true, supported = true;
+  for (const section of sections) {
+    for (const row of visiblePositions(section)) {
+      const apr = positionRate(row, section, rates);
+      if (positionKind(section) === 'loan') {
+        const amount = number(row.collateralAmount);
+        if (amount !== null) collateral.set(row.collateral, (collateral.get(row.collateral) || 0) + amount);
+        const principal = number(row.debt ?? row.loan);
+        const interest = row.debt != null ? 0 : number(row.interest);
+        if (!stable(row.asset) || principal === null || interest === null) { supported = false; valuation = false; continue; }
+        const balance = principal + interest;
+        debt += balance;
+        if (apr?.label === 'APR') annualCost += balance * apr.value;
+        else loanPriced = false;
+        const ltv = number(row.currentLtvPercent);
+        if (ltv > 0 && amount > 0) collateralUsd += balance / (ltv / 100);
+        else valuation = false;
+      } else {
+        const amount = number(row.amount);
+        // Collateral is already counted by the loans; do not add it to Earn principal.
+        if (amount === null) { supported = false; continue; }
+        if (!stable(row.asset)) { if (amount > 0) supported = false; continue; }
+        earn += amount;
+        if (amount === 0) continue;
+        if (apr?.label === 'APR') annualIncome += amount * apr.value;
+        else earnPriced = false;
+      }
+    }
+  }
+  const loanAvailable = sections.some(s => positionKind(s) === 'loan' && ['ok', 'partial'].includes(s.status));
+  const earnAvailable = sections.some(s => positionKind(s) === 'earn' && ['ok', 'partial'].includes(s.status));
+  const sourceFailure = sections.some(s => !['ok', 'partial'].includes(s.status));
+  const borrowingApr = loanPriced && supported && debt > 0 ? annualCost / debt : null;
+  const earningApr = earnPriced && supported && earn > 0 ? annualIncome / earn : null;
+  const netAnnual = loanAvailable && earnAvailable && !sourceFailure && loanPriced && earnPriced && supported ? annualIncome - annualCost : null;
+  return { collateral: [...collateral], collateralUsd: loanAvailable && valuation && supported ? collateralUsd : null,
+    debt: loanAvailable ? debt : null, earn: earnAvailable ? earn : null, borrowingApr, earningApr, spread: earningApr !== null && borrowingApr !== null ? earningApr - borrowingApr : null,
+    netAnnual, netApr: netAnnual !== null && earn > 0 ? netAnnual / earn : null,
+    partial: sections.some(s => s.status !== 'ok'), supported };
 }
