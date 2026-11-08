@@ -65,19 +65,11 @@ export function mountPositions({ el, logoLabel }) {
     for (const name of labels) { const th = el('th', '', name); th.scope = 'col'; th.dataset.label = name; heading.append(th); }
     head.append(heading); table.append(head);
     const body = el('tbody'); table.append(body);
-    const summaries = [];
     const coverage = el('div', 'note');
     const failures = el('div', 'note error');
     for (const section of sections) {
       const successful = ['ok', 'partial'].includes(section.status);
       const records = visiblePositions(section);
-      const total = positionSummary(section);
-      if (total !== null) {
-        const summary = el('div', 'position-summary');
-        summary.append(el('span', 'position-summary-label', `${section.platform} ${section.product} · Total value`),
-          el('span', 'position-amount', `≈ ${total} USDT`));
-        summaries.push(summary);
-      }
       if (!successful) failures.append(el('div', '', `${section.platform} ${section.product}: ${section.status === 'not_configured' ? 'API key not configured' : `Unavailable · ${section.error || 'request failed'}${section.upstreamCode ? ` (${section.upstreamCode})` : ''}`}`));
       for (const r of records) {
         const row = el('tr'); row.setAttribute('role', 'row'); row.dataset.platform = section.platform;
@@ -103,14 +95,13 @@ export function mountPositions({ el, logoLabel }) {
         if (section.fetchedAt) { updated.dataset.updatedAt = section.fetchedAt; updated.title = new Date(section.fetchedAt).toISOString(); }
         cell(row, 'Updated', updated); body.append(row);
       }
-      if (section.status === 'partial' && (records.length || total !== null || section.estimatedValue === undefined)) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
+      if (section.status === 'partial' && !(section.platform === 'Bitget' && section.product === 'Savings')) coverage.append(el('div', '', `${section.platform} ${section.product}: ${section.coverage || 'Partial results'}`));
     }
     mergePlatformCells(body);
     const wrap = el('div', 'table-wrap'); wrap.append(table);
     content.replaceChildren();
     if (body.childElementCount) content.append(wrap);
-    else if (!summaries.length && !failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', 'No positions'));
-    content.append(...summaries);
+    else if (!failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', sections.some(section => section.status === 'partial') ? 'No position details' : 'No positions'));
     if (failures.childElementCount) content.append(failures);
     if (coverage.childElementCount) content.append(coverage);
     content.hidden = false;
