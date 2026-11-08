@@ -75,6 +75,12 @@ export async function bitgetGet(path, env, fetcher = fetch) {
   });
   return payload.data;
 }
+export function savingsEarnings(row) {
+  let interestAsset = null;
+  try { interestAsset = coin(row.interestCoin); } catch {}
+  const amount = value => interestAsset && typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value) ? value : null;
+  return { interestAsset, totalProfit: amount(row.totalProfit), lastProfit: amount(row.lastProfit) };
+}
 export async function bitgetSavings(env, fetcher) {
   const summary = await bitgetGet('/api/v3/earn/savings/account', env, fetcher);
   const estimatedValue = decimal(summary?.usdtAmount);
@@ -88,7 +94,7 @@ export async function bitgetSavings(env, fetcher) {
       if (!Array.isArray(data?.resultList)) throw new Error('invalid_data');
       for (const r of data.resultList) {
         if (r.status !== 'in_holding') continue;
-        rows.push({ asset: coin(r.productCoin), amount: decimal(r.holdAmount), product: periodType === 'flexible' ? 'Flexible Savings' : 'Fixed Savings', collateralAmount: null });
+        rows.push({ asset: coin(r.productCoin), amount: decimal(r.holdAmount), product: periodType === 'flexible' ? 'Flexible Savings' : 'Fixed Savings', collateralAmount: null, ...savingsEarnings(r) });
       }
       if (data.resultList.length < 100 || !data.endId) break;
       if (typeof data.endId !== 'string' || !/^\d{1,40}$/.test(data.endId) || seen.has(data.endId)) break;

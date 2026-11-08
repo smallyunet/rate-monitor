@@ -131,3 +131,6 @@ tbody tr:hover { background: var(--hover); }
   .rates-table[aria-label="Loan rates"] th:nth-child(4),
   .rates-table[aria-label="Loan rates"] td.apr { padding-left: 44px; }
 }
+
+.rate-badge { display: inline-block; padding: 0 4px; border: 1px solid #52605b; border-radius: 3px; color: #9bcec0; font-size: 9px; line-height: 15px; font-weight: 400; vertical-align: 1px; white-space: nowrap; }
+.apr > .cell-value > .rate-badge { margin-left: 6px; }

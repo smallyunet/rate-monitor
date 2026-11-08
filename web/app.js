@@ -1,5 +1,5 @@
 import { mountPositions, mergePlatformCells } from './positions.js';
-import { productEarnTiers } from './earn-apr.js';
+import { productEarnTiers, rateHighlights } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
 const ENDPOINT = '/api/rates';
 const descriptors = [
@@ -64,7 +64,7 @@ function tierLabel(tier, asset) {
   if (tier.to === Infinity) return tier.from === 0 ? 'All amounts' : `Above ${number(tier.from)} ${asset}`;
   return tier.from === 0 ? `First ${number(tier.to)} ${asset}` : `${number(tier.from)}–${number(tier.to)} ${asset}`;
 }
-function renderEarn(p, apr) {
+function renderEarn(p, apr, highlight) {
   let tiers;
   if (p.status === 'ok') {
     try { tiers = productEarnTiers(p); }
@@ -72,14 +72,21 @@ function renderEarn(p, apr) {
   }
   if (tiers) {
     apr.replaceChildren();
-    for (const tier of tiers) {
+    for (const [index, tier] of tiers.entries()) {
       const line = el('div', 'apr-tier');
       line.append(el('span', 'secondary', `${tierLabel(tier, p.asset)}:`), el('strong', '', percent(tier.apr)));
+      if (highlight && index === 0) line.append(rateBadge('max'));
       apr.append(line);
     }
   }
 }
+function rateBadge(label) {
+  const badge = el('span', 'rate-badge', label);
+  badge.title = label === 'min' ? 'Lowest APR in the Loan list' : 'Highest first-tier APR in the Earn list';
+  return badge;
+}
 function render(products) {
+  const highlights = rateHighlights(products);
   const bodies = { loan: document.querySelector('#loan-rows'), earn: document.querySelector('#earn-rows') };
   Object.values(bodies).forEach(body => body.replaceChildren());
   document.querySelector('#config').hidden = !products.some(p => p.platform === 'Binance' && p.status === 'not_configured');
@@ -99,8 +106,9 @@ function render(products) {
     assets.append(pair);
     const apr = el('td', p.kind === 'loan' ? 'apr' : 'tier-aprs', p.status === 'ok' && p.kind === 'loan' ? percent(p.apr) : '—');
     if (p.kind === 'earn') {
-      renderEarn(p, apr);
+      renderEarn(p, apr, highlights.max.has(p.id));
     }
+    if (p.kind === 'loan' && highlights.min.has(p.id)) apr.append(rateBadge('min'));
     const updated = el('td', 'updated');
     if (p.status === 'ok') {
       const age = el('span');

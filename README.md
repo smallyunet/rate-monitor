@@ -146,3 +146,9 @@ Loan 与 Earn 分别展示各自的产品数量和分档；两处 Refresh 复用
 Bitget 的 `borrow-ongoing` 读取 `pledgeRate`（当前 LTV）、`supRate`（补仓线）、`forceRate`（清算线），均按百分数展示。Position 下方显示 Interest；右侧 Liquidation 列用细进度条展示当前 LTV / 清算线，并显示 Gap（清算线减当前 LTV，单位为百分点）和 Call（补仓线）。颜色按接口阈值变化，缺失或非法风险字段显示 —，不会按零处理，也不影响余额展示。这里不估算清算价格或可承受币价跌幅。
 
 字段来源：[Bitget Crypto Loans](https://www.bitget.com/docs/catalog/crypto-loans/crypto-loans)。
+
+### Earn 持仓收益与利率标签
+
+Bitget v3 Savings 持仓实际提供 `totalProfit`、`lastProfit`、`interestCoin`。只读适配器保留收益原始精度及收益币种，Earn Positions 在持仓金额下方显示 Earned（累计）与 Yesterday（上一日）；字段缺失或无收益币种时不推算、不补零。收益只属于接口返回的该持仓，不表示账户完整历史收益。
+
+Loan 列表的最低成功 APR 标记 `min`；Earn 列表按首档 APR 比较，最高者仅在首档后标记 `max`，并列均标记。错误、未配置或非法利率不参与比较。

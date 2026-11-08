@@ -32,3 +32,20 @@ export function productEarnTiers(product) {
     return { ...tier };
   });
 }
+
+// Compare only successful displayed rates. Earn uses the first amount band.
+export function rateHighlights(products) {
+  const loans = [], earns = [];
+  for (const product of products) {
+    if (product.status !== 'ok') continue;
+    if (product.kind === 'loan' && Number.isFinite(product.apr) && product.apr >= 0) loans.push([product.id, product.apr]);
+    if (product.kind === 'earn') {
+      try { earns.push([product.id, productEarnTiers(product)[0].apr]); } catch {}
+    }
+  }
+  const winners = (rows, choose) => {
+    const best = choose(...rows.map(([, apr]) => apr));
+    return new Set(rows.filter(([, apr]) => apr === best).map(([id]) => id));
+  };
+  return { min: winners(loans, Math.min), max: winners(earns, Math.max) };
+}

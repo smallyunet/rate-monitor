@@ -29,6 +29,13 @@ export function loanRisk(row) {
     state: gap === null ? 'unknown' : gap <= 0 ? 'danger' : call === null ? 'unknown' : current >= call ? 'warning' : 'normal' };
 }
 
+export function earnProfitLines(row) {
+  if (typeof row.interestAsset !== 'string' || !/^[A-Z0-9._-]{1,32}$/.test(row.interestAsset)) return [];
+  return [['Earned: ', row.totalProfit], ['Yesterday: ', row.lastProfit]]
+    .filter(([, value]) => typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value))
+    .map(([label, value]) => ({ label, value, asset: row.interestAsset }));
+}
+
 // Merge adjacent platform cells on desktop. Repeated cells remain available for mobile cards.
 export function mergePlatformCells(body) {
   const rows = Array.from(body.children);
@@ -121,6 +128,7 @@ export function mountPositions({ el, logoLabel }) {
         } else {
           details.append(amountLine('', r.amount, r.asset));
           if (positiveAmount(r.collateralAmount)) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
+          for (const profit of earnProfitLines(r)) details.append(amountLine(profit.label, profit.value, profit.asset, true));
         }
         cell(row, labels[3], details);
         if (kind === 'loan') cell(row, 'Liquidation', riskView(r));
