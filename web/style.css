@@ -133,10 +133,4 @@ tbody tr:hover { background: var(--hover); }
 }
 
 .rate-badge { display: inline-block; padding: 0 4px; border: 1px solid #80651c; background: #30291a; border-radius: 3px; color: #f0cb4d; font-size: 9px; line-height: 15px; font-weight: 400; vertical-align: 1px; white-space: nowrap; }
-.rates-table .highlight-heading { width: 52px; }
-.rates-table td.rate-highlight { padding-left: 10px; padding-right: 10px; vertical-align: top; }
-@media (max-width: 680px) {
-  .rates-table td.rate-highlight { padding: 0; }
-  .rates-table td.rate-highlight:not(:has(.rate-badge)) { display: none; }
-  .rates-table td.rate-highlight::before { display: none; }
-}
+.rate-value { display: inline-flex; align-items: baseline; gap: 16px; white-space: nowrap; }
