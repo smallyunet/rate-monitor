@@ -1,0 +1,13 @@
+**
+!package.json
+!package-lock.json
+!Dockerfile
+!scripts/
+!scripts/**
+!worker/
+!worker/**
+!web/
+!web/**
+!server/
+!server/app.js
+!server/http-adapter.js

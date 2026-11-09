@@ -2,9 +2,33 @@
 
 多平台借贷与活期利率看板。支持 Binance 和 Bitget 的 BTC 抵押 / USDC、USDT 活期借款，以及 Binance、Bitget 的 USDC、USDT Flexible Earn。
 
-- 网页：https://rate-monitor-api.smallyu.workers.dev/
-- Worker：https://rate-monitor-api.smallyu.workers.dev
+- 网页与 API：https://w.dark20.xyz
 - 本地目录：`/Users/smallyu/work/github/rate-monitor`
+
+## Docker 生产部署（2026-11-09）
+
+应用迁移到 `ssh d`，目录 `/opt/rate-monitor/app`，容器 `rate-monitor-app`。一个 Node.js 24 容器同时提供网页、利率和私人仓位 API，复用原 Fetch handler；无数据库、定时采样或账户数据持久化。`build/worker.js` 仅为复用代码的构建产物，Docker 运行不依赖 Cloudflare Worker。
+
+`w.dark20.xyz` 通过 Cloudflare 代理指向 d，现有 Caddy 按 `server/Caddyfile.app` 反向代理到容器 8787 端口。应用不发布宿主机端口，不修改其他站点的路由。原有 Access 应用保护新域名 `/private/*`，保留 owner-only 策略和服务端 JWT 签名、issuer、AUD、邮箱验证。不要删除仍在使用的 Access 应用或团队。
+
+`server/app.env` 使用 `.env.example` 中的变量，权限 600，父目录限制访问；不得提交、放入 Docker 构建上下文、镜像层或日志。容器直接请求交易所，不设置 `BITGET_RELAY_URL`。2026-11-09 实测 d 出口的 OKX 官网 Loan 接口缺少 USDT，保留 unavailable，不能用旧 Worker 或其他产品利率静默补值。`PUBLIC_ORIGIN` 和 `ALLOWED_ORIGIN` 由 Compose 设置为新站域名。密钥保持只读；固定出口 IP 的白名单由交易所配置决定。
+
+```sh
+npm ci
+npm run check
+npm test
+npm run build
+npm run build:worker
+# 在服务器源码目录执行；RELEASE 使用已提交的 Git SHA。
+RELEASE=<git-sha> docker compose -p rate-monitor-app -f server/compose.app.yml build
+RELEASE=<git-sha> docker compose -p rate-monitor-app -f server/compose.app.yml up -d --no-build
+```
+
+容器启用 healthcheck、非 root、只读根文件系统、内存/进程/日志限制和优雅退出。`/health` 的 `X-Release` 响应头用于核对部署版本，不包含密钥。更新后检查容器 healthy、公开利率、Access 登录后的仓位与汇总，并确认匿名请求及伪造 JWT 不能读取私人仓位。上一个镜像可以用旧 RELEASE 重新启动回滚。
+
+退役对象为旧 `rate-monitor-api` Worker 的访问入口、`rate-monitor-relay` 容器和 `c.dark20.xyz/_rate-monitor/*` 路由；必须在新站验收后停用。共享 Caddy 和其他项目容器继续运行。GitHub Pages 保持关闭，GitHub Actions 仅测试/构建，不自动部署。
+
+以下章节保留交易所字段、历史排障和原 Worker 部署记录；其中旧 Worker 地址、ssh a 中转和手工粘贴部署不再是 Docker 生产流程。
 
 ## 工作方式
 

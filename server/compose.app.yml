@@ -1,0 +1,33 @@
+services:
+  app:
+    image: rate-monitor:${RELEASE:-local}
+    build:
+      context: ..
+      args:
+        RELEASE: ${RELEASE:-local}
+    container_name: rate-monitor-app
+    restart: unless-stopped
+    env_file:
+      - path: app.env
+        format: raw
+    environment:
+      PUBLIC_ORIGIN: https://w.dark20.xyz
+      ALLOWED_ORIGIN: https://w.dark20.xyz
+    networks:
+      entrypoint:
+        aliases: [rate-monitor-app]
+    read_only: true
+    user: node
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 64
+    init: true
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: '2m', max-file: '2' }
+networks:
+  entrypoint:
+    external: true
+    name: viraeflow-demo_default
