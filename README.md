@@ -26,7 +26,7 @@ RELEASE=<git-sha> docker compose -p rate-monitor-app -f server/compose.app.yml u
 
 容器启用 healthcheck、非 root、只读根文件系统、内存/进程/日志限制和优雅退出。`/health` 的 `X-Release` 响应头用于核对部署版本，不包含密钥。更新后检查容器 healthy、公开利率、Access 登录后的仓位与汇总，并确认匿名请求及伪造 JWT 不能读取私人仓位。上一个镜像可以用旧 RELEASE 重新启动回滚。
 
-退役对象为旧 `rate-monitor-api` Worker 的访问入口、`rate-monitor-relay` 容器和 `c.dark20.xyz/_rate-monitor/*` 路由；必须在新站验收后停用。共享 Caddy 和其他项目容器继续运行。GitHub Pages 保持关闭，GitHub Actions 仅测试/构建，不自动部署。
+2026-11-09 已停用旧 `rate-monitor-api` Worker 的 workers.dev 入口（预览入口也关闭），旧地址返回 404；Worker 资源及 Secrets 暂保留供回滚，没有继续承载网站/API。`rate-monitor-relay` 已停止并设为 restart=no，`c.dark20.xyz/_rate-monitor/*` 路由已移除。Access 应用仅保留新域名。用户已接受 OKX USDT Loan 暂缺后完成切换。共享 Caddy 和其他项目容器继续运行。GitHub Pages 保持关闭，GitHub Actions 仅测试/构建，不自动部署。
 
 以下章节保留交易所字段、历史排障和原 Worker 部署记录；其中旧 Worker 地址、ssh a 中转和手工粘贴部署不再是 Docker 生产流程。
 

@@ -1,4 +1,4 @@
-# Run on ssh a; the shared c.dark20.xyz entrypoint routes /_rate-monitor/* here.
+# Legacy relay, retired on 2026-11-09. Production uses compose.app.yml on ssh d.
 services:
   relay:
     image: node:24-alpine
