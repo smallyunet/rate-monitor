@@ -89,9 +89,9 @@ export function mountPositions({ el, logoLabel }) {
     group.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
     line.append(group);
     if (apr !== undefined) {
-      const text = apr ? `${apr.label} ${(apr.value * 100).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%` : 'APR —';
+      const text = apr ? `${apr.label === 'APY' ? 'APY ' : ''}${(apr.value * 100).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%` : '—';
       const badge = el('span', 'rate-badge position-apr', text);
-      badge.title = apr ? 'Current annualized rate; tiered Earn is weighted by the held amount. Collateral receives the base rate.' : 'Current position rate unavailable';
+      badge.title = apr ? `Current ${apr.label}; tiered Earn is weighted by the held amount. Collateral receives the base rate.` : 'Current position rate unavailable';
       group.append(badge);
     }
     return line;

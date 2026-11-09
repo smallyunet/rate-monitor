@@ -183,4 +183,6 @@ Binance Loan 风险列使用 ongoing orders 的 `currentLTV`，并按 `collatera
 
 ### 仓位 APR 标签
 
-Earn 持仓金额及 Loan 债务金额后显示黄色小号年化标签。Binance Flexible Earn 从持仓的基础年化和奖励档位按实际金额加权，抵押占用部分按基础年化；Locked Earn 保留接口 APY 标签。Bitget Savings 使用该持仓返回的 apy 分档按持仓金额加权，不替换成市场列表的最高方案。Bitget Loan 将持仓小时百分比利率按 24×365 年化；Binance Flexible Loan 匹配本次刷新成功的同平台、借款币、抵押币市场 APR。未知或不完整的利率显示 APR —，不会补零。
+Earn 持仓金额及 Loan 债务金额后显示黄色小号年化标签。Binance Flexible Earn 从持仓的基础年化和奖励档位按实际金额加权，抵押占用部分按基础年化；Locked Earn 保留接口 APY 标签。Bitget Savings 使用该持仓返回的 apy 分档按持仓金额加权，不替换成市场列表的最高方案。Bitget Loan 将持仓小时百分比利率按 24×365 年化；Binance Flexible Loan 匹配本次刷新成功的同平台、借款币、抵押币市场 APR。APR 标签仅显示百分比数字，鼠标悬停可查看 APR 说明；Locked Earn 仍保留 APY 标识。未知或不完整的利率显示 —，不会补零。
+
+桌面双栏布局中，左右两栏独立上下滚动，顶部导航保持可见；窄屏继续使用单栏页面滚动。
