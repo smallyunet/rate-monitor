@@ -38,3 +38,21 @@ test('loan APR fallback matches exact asset, collateral and platform without usi
  assert.equal(positionRate(row,{platform:'Bitget',product:'Savings'},[quote]),null);
  assert.deepEqual(positionRate({...row,positionRate:0,positionRateLabel:'APR'},section,[]),{value:0,label:'APR'});
 });
+test('OKX estimates use matching displayed marginal tiers, including caps and eligibility assumptions', () => {
+ const section = {platform:'OKX',product:'Flexible Earn'};
+ for (const asset of ['USDT','USDC']) {
+  const quote = {platform:'OKX',kind:'earn',asset,status:'ok',apr:.03,tiers:[],bonusStatus:'ok',bonus:{limit:500,apr:.1}};
+  for (const [amount, expected] of [['100',.1],['500',.1],['1000',.065],['500.01',(50+.01*.03)/500.01]]) {
+   const apr = positionRate({asset,amount},section,[quote]);
+   near(apr.value,expected);assert.equal(apr.estimated,true);assert.equal(apr.assumesBonusEligibility,true);
+  }
+  for (const changes of [{status:'error'},{bonusStatus:'error'},{asset:'BTC'},{bonus:{limit:0,apr:.1}}]) {
+   assert.equal(positionRate({asset,amount:'500'},section,[{...quote,...changes}]),null);
+  }
+  for (const amount of ['0','',undefined,'invalid','Infinity','-1']) assert.equal(positionRate({asset,amount},section,[quote]),null);
+  assert.equal(positionRate({asset,amount:'500'},section,[quote,quote]),null);
+  assert.equal(positionRate({asset,amount:'500'},section,[]),null);
+  const base = positionRate({asset,amount:'500'},section,[{...quote,bonusStatus:'unavailable'}]);
+  near(base.value,.03);assert.equal(base.assumesBonusEligibility,false);
+ }
+});

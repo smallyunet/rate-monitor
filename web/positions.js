@@ -1,3 +1,4 @@
+import { productEarnTiers } from './earn-apr.js';
 // Check decimal strings without converting tiny balances to floating-point zero.
 const positiveAmount = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && /[1-9]/.test(value);
 export function visiblePositions(section) {
@@ -38,6 +39,18 @@ export function earnProfitLines(row) {
 
 export function positionRate(row, section, rates) {
   if (Number.isFinite(row.positionRate) && row.positionRate >= 0) return { value: row.positionRate, label: row.positionRateLabel === 'APY' ? 'APY' : 'APR' };
+  if (section.platform === 'OKX' && section.product === 'Flexible Earn') {
+    const quotes = rates.filter(p => p.platform === 'OKX' && p.kind === 'earn' && p.asset === row.asset && p.status === 'ok');
+    const amount = number(row.amount);
+    if (quotes.length !== 1 || amount === null || amount <= 0 || !['ok', 'unavailable'].includes(quotes[0].bonusStatus)) return null;
+    try {
+      let annual = 0;
+      for (const tier of productEarnTiers(quotes[0])) annual += Math.max(0, Math.min(amount, tier.to) - tier.from) * tier.apr;
+      const value = annual / amount;
+      if (!Number.isFinite(value)) return null;
+      return { value, label: 'APR', estimated: true, assumesBonusEligibility: quotes[0].bonusStatus === 'ok' };
+    } catch { return null; }
+  }
   if (section.platform === 'Binance' && section.product === 'Flexible Loan') {
     const matches = rates.filter(p => p.status === 'ok' && p.kind === 'loan' && p.platform === section.platform && p.asset === row.asset && p.collateral === row.collateral && Number.isFinite(p.apr) && p.apr >= 0);
     if (matches.length === 1) return { value: matches[0].apr, label: 'APR' };
@@ -89,9 +102,9 @@ export function mountPositions({ el, logoLabel }) {
     group.append(el('span', value == null ? '' : 'position-amount', quantity(value, asset)));
     line.append(group);
     if (apr !== undefined) {
-      const text = apr ? `${apr.label === 'APY' ? 'APY ' : ''}${(apr.value * 100).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%` : '—';
+      const text = apr ? `${apr.estimated ? 'Est. APR ' : apr.label === 'APY' ? 'APY ' : ''}${(apr.value * 100).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%` : '—';
       const badge = el('span', 'rate-badge position-apr', text);
-      badge.title = apr ? `Current ${apr.label}; tiered Earn is weighted by the held amount. Collateral receives the base rate.` : 'Current position rate unavailable';
+      badge.title = apr?.estimated ? 'Estimated from market tiers and total balance; before fees, assumes funds are lent. Bonus eligibility is unverified.' : apr ? `Current ${apr.label}; tiered Earn is weighted by the held amount. Collateral receives the base rate.` : 'Current position rate unavailable';
       group.append(badge);
     }
     return line;
@@ -146,6 +159,9 @@ export function mountPositions({ el, logoLabel }) {
           if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
           details.append(amountLine('', r.amount, r.asset, false, apr));
+          if (apr?.estimated) details.append(el('div', 'secondary', apr.assumesBonusEligibility
+            ? 'Assumes bonus eligibility is valid · before fees'
+            : 'Estimated from market tiers · before fees'));
           if (section.platform === 'OKX') {
             details.append(amountLine('Lent: ', r.lendingAmount, r.asset, true));
             details.append(amountLine('Pending lending: ', r.pendingAmount, r.asset, true));
@@ -193,6 +209,9 @@ export function mountPositions({ el, logoLabel }) {
     add('Est. net income', money(summary.netAnnual === null ? null : summary.netAnnual / 365) + ' / day', `${money(summary.netAnnual === null ? null : summary.netAnnual / 12)} / month · ${money(summary.netAnnual)} / year`);
     const wrap = el('div', 'table-wrap'); wrap.append(table);
     content.replaceChildren(wrap);
+    if (sections.some(section => visiblePositions(section).some(row => positionRate(row, section, latestRates)?.assumesBonusEligibility))) {
+      content.append(el('div', 'note', 'OKX estimates assume bonus eligibility is valid and funds are lent; before fees.'));
+    }
     document.querySelector('#portfolio-summary').hidden = false;
   }
   function render(sections) {

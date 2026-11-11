@@ -36,3 +36,10 @@ test('failed sources do not become zero balances or a complete net projection',(
   const result=portfolioSummary([section('Flexible Loan',[],'error'),section('Savings',[{asset:'USDT',amount:'1000',positionRate:0.1}])],[]);
   assert.equal(result.debt,null);assert.equal(result.collateralUsd,null);assert.equal(result.netAnnual,null);assert.equal(result.partial,true);
 });
+test('portfolio uses the same OKX tier estimate for weighted APR and projections', () => {
+ const okx = {platform:'OKX',product:'Flexible Earn',status:'ok',rows:[{asset:'USDC',amount:'1000',positionRate:null}]};
+ const quote = {platform:'OKX',kind:'earn',asset:'USDC',status:'ok',apr:.03,tiers:[],bonusStatus:'ok',bonus:{limit:500,apr:.1}};
+ const result = portfolioSummary([section('Flexible Loan',[], 'ok'),okx],[quote]);
+ assert.equal(result.earningApr,.065);assert.equal(result.netAnnual,65);
+ assert.equal(portfolioSummary([okx],[{...quote,bonusStatus:'error'}]).earningApr,null);
+});

@@ -156,7 +156,7 @@ Rates 仅展示平台 APR 和分档，不提供金额输入或综合 APR 测算�
 
 登录后的 Earn Positions 接入官方只读 `GET /api/v5/finance/savings/balance`，一次读取全部币种的 Simple Earn Flexible 余额，不包含定期、链上赚币或其他账户资产。服务器 `server/app.env` 需配置 `OKX_API_KEY`、`OKX_API_SECRET`、`OKX_API_PASSPHRASE`，使用只读权限、生产服务器出口 IP 白名单；密钥不得粘贴进聊天、提交到仓库或进入镜像。全球账户使用固定官方域名 `www.okx.com`；地区账户域名不匹配时保留错误，不把签名转发到其他域名。
 
-余额使用 `amt`，已出借 / 待出借分别展示 `loanAmt` / `pendingAmt`；组成部分不与余额相加。`earnings` 展示为 Earned，缺失保持未知。`rate` 是用户设置的最低出借利率，不能作为实际仓位 APR；公开活动资格也未确认，所以 APR 显示 —，组合汇总保留余额但不虚构收益率或净收益。未配置、失败、成功空持仓分别保留。请求复用现有 Access 身份验证，仅允许固定 GET 路径，HMAC SHA256 + Base64 签名，禁止重定向，不向前端返回密钥或上游错误正文。
+余额使用 `amt`，已出借 / 待出借分别展示 `loanAmt` / `pendingAmt`；组成部分不与余额相加。`earnings` 展示为 Earned，缺失保持未知。`rate` 是用户设置的最低出借利率，不能作为实际仓位 APR；持仓 APR 按本次刷新成功的同币种市场档位、以 `amt` 加权估算（复用左侧档位规则），显示 Est. APR，奖励档位标注“Assumes bonus eligibility is valid”。该估算未扣服务费、假设资金均已出借，并非实际结算收益率；组合估算使用相同 APR 并保留假设说明。奖励查询失败、市场报价失败或缺失、币种不匹配或金额无效时保持 —，不将最低出借利率或其他币种报价用于补值。未配置、失败、成功空持仓分别保留。请求复用现有 Access 身份验证，仅允许固定 GET 路径，HMAC SHA256 + Base64 签名，禁止重定向，不向前端返回密钥或上游错误正文。
 
 来源：[OKX Saving balance 文档](https://www.okx.com/docs-v5/en/#financial-product-simple-earn-flexible-get-saving-balance)。
 
