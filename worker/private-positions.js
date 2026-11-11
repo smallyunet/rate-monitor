@@ -1,5 +1,6 @@
 import { binancePositionRate, bitgetPositionRate, bitgetLoanApr } from './position-rates.js';
 import { verifyPositionsIdentity } from './access-auth.js';
+import { okxSavingsGet, normalizeOKXPositions } from './okx-positions.js';
 
 export function decimal(value) {
   if (typeof value !== 'string' || !/^\d+(?:\.\d+)?$/.test(value)) throw new Error('invalid_data');
@@ -145,6 +146,9 @@ export async function collectPositions(env, fetcher, binanceGet) {
       rows: bitgetLoans(await bitgetGet('/api/v3/loan/borrow-ongoing', env, fetcher)),
     }) },
     { platform: 'Bitget', product: 'Savings', configured: !!(env.BITGET_API_KEY && env.BITGET_API_SECRET && env.BITGET_API_PASSPHRASE), read: async () => bitgetSavings(env, fetcher) },
+    { platform: 'OKX', product: 'Flexible Earn', configured: !!(env.OKX_API_KEY && env.OKX_API_SECRET && env.OKX_API_PASSPHRASE), read: async () => ({
+      rows: normalizeOKXPositions(await okxSavingsGet(env, fetcher)),
+    }) },
   ];
   // Binance USER_DATA endpoints have strict per-account limits; serialize within a request.
   const sections = [];
