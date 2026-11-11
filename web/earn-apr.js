@@ -23,6 +23,11 @@ export function earnTiers(baseApr, bonuses, asset) {
   return result;
 }
 export function productEarnTiers(product) {
+  if (product.platform === 'OKX' && product.bonusStatus === 'ok') {
+    const bonus = product.bonus;
+    if (!bonus || !Number.isFinite(bonus.limit) || bonus.limit <= 0 || !Number.isFinite(bonus.apr) || bonus.apr < 0 || !Number.isFinite(product.apr) || product.apr < 0) throw new Error('invalid_tiers');
+    return [{ from: 0, to: bonus.limit, apr: bonus.apr }, { from: bonus.limit, to: Infinity, apr: product.apr }];
+  }
   if (product.rateTiers === undefined) return earnTiers(product.apr, product.tiers, product.asset);
   if (!Array.isArray(product.rateTiers) || !product.rateTiers.length) throw new Error('invalid_tiers');
   let cursor = 0;

@@ -34,6 +34,18 @@ export function normalizeOKXEarn(data, asset, now = Date.now()) {
     rateAt: new Date(timestamp).toISOString(), serviceFeeRate: .15,
     rateNote: 'Last hour · before fees · no bonuses' };
 }
+const currencyIds = { USDT: 7, USDC: 283 };
+export function normalizeOKXBonus(data, asset) {
+  if (!Array.isArray(data)) throw new Error('invalid_data');
+  if (!data.length) return null;
+  const row = exact(data, 'currencySymbol', asset);
+  if (row.currencyId !== currencyIds[asset]) throw new Error('invalid_data');
+  const limit = decimal(row.bonusLimit), days = decimal(row.boostDay);
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(row.bonusRate);
+  if (!match || limit <= 0 || !Number.isSafeInteger(days) || days <= 0) throw new Error('invalid_data');
+  // This is the advertised total bonus tier, not an addition to lendingRate.
+  return { limit, apr: decimal(match[1]) / 100, days, eligibility: 'unknown' };
+}
 async function get(path, fetcher) {
   let response;
   try { response = await fetcher('https://www.okx.com' + path, {
@@ -55,6 +67,17 @@ export async function collectOKX(fetcher = fetch) {
     try {
       const value = product.kind === 'loan' ? normalizeOKXLoan(await loan, product.asset)
         : normalizeOKXEarn(await get(`/api/v5/finance/savings/lending-rate-history?ccy=${product.asset}&limit=1`, fetcher), product.asset);
+      if (product.kind === 'earn') {
+        try {
+          value.bonus = normalizeOKXBonus(await get(`/priapi/v2/financial/earn/compensation-config?currencyId=${currencyIds[product.asset]}`, fetcher), product.asset);
+          value.bonusStatus = value.bonus ? 'ok' : 'unavailable';
+          if (value.bonus) value.rateNote = 'Bonus eligibility required · market APR before fees';
+        } catch (error) {
+          // A failed reward lookup must not hide a valid market quote or imply no reward.
+          value.bonusStatus = 'error';
+          value.bonusError = safe.has(error.message) ? error.message : 'upstream_error';
+        }
+      }
       return { ...product, ...value, status: 'ok', fetchedAt: new Date().toISOString() };
     } catch (error) {
       return { ...product, status: 'error', apr: null, error: safe.has(error.message) ? error.message : 'upstream_error',

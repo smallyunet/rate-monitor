@@ -80,6 +80,11 @@ function renderEarn(p, apr, highlight) {
       line.append(el('span', 'secondary', `${tierLabel(tier, p.asset)}:`), value);
       apr.append(line);
     }
+    if (p.platform === 'OKX' && p.bonusStatus === 'ok') {
+      apr.append(el('div', 'secondary', `Bonus · ${p.bonus.days} days · eligibility required`));
+    } else if (p.platform === 'OKX' && p.bonusStatus === 'error') {
+      apr.append(el('div', 'secondary error', 'Bonus tiers unavailable'));
+    }
   }
 }
 function rateBadge(label) {
