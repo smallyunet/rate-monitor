@@ -1,12 +1,22 @@
 import { mountPositions, mergePlatformCells } from './positions.js';
 import { productEarnTiers, rateHighlights } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
-import { readPlatform, savePlatform, filterPlatform, updateContent, relativeTime } from './view-state.js';
+import { PLATFORMS, readPlatform, savePlatform, filterPlatform, updateContent, relativeTime } from './view-state.js';
 const ENDPOINT = '/api/rates';
-const platformSelect = document.querySelector('#platform-filter');
-let platform = 'all';
+const platformFilter = document.querySelector('#platform-filter');
+const platformOptions = [...document.querySelectorAll('input[name="platform"]')];
+const allPlatforms = document.querySelector('#platform-all');
+let platform = [...PLATFORMS];
 try { platform = readPlatform(localStorage); } catch { /* Storage may be disabled. */ }
-platformSelect.value = platform;
+function syncPlatformFilter() {
+  for (const option of platformOptions) option.checked = platform.includes(option.value);
+  allPlatforms.checked = platform.length === PLATFORMS.length;
+  allPlatforms.indeterminate = platform.length > 0 && !allPlatforms.checked;
+  const label = allPlatforms.checked ? 'All platforms' : platform.length ? platform.join(' + ') : 'No platforms';
+  document.querySelector('#platform-label').textContent = label;
+  document.querySelector('#platform-empty').hidden = platform.length > 0;
+}
+syncPlatformFilter();
 let latestProducts = [], ratesRefreshing = false;
 const descriptors = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
@@ -208,11 +218,22 @@ setInterval(() => {
   }
 }, 1000);
 const positionsView = mountPositions({ el, logoLabel, platform });
-platformSelect.addEventListener('change', () => {
-  platform = platformSelect.value;
+platformFilter.addEventListener('change', event => {
+  platform = event.target === allPlatforms ? allPlatforms.checked ? [...PLATFORMS] : []
+    : platformOptions.filter(option => option.checked).map(option => option.value);
+  syncPlatformFilter();
   try { savePlatform(localStorage, platform); } catch { /* Keep in-memory selection. */ }
   render(latestProducts, { animate: false });
   positionsView.setPlatform(platform);
+});
+document.addEventListener('click', event => {
+  if (!platformFilter.contains(event.target)) platformFilter.open = false;
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && platformFilter.open) {
+    platformFilter.open = false;
+    platformFilter.querySelector('summary').focus();
+  }
 });
 const refreshButton = document.querySelector('#refresh');
 const refreshLabel = refreshButton.querySelector('.refresh-label');

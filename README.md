@@ -174,7 +174,7 @@ OKX 新增 USDC、USDT 两项 Flexible Loan 和两项 Flexible Earn，均无需�
 
 Loan 与 Earn 分别展示各自的产品数量和分档；顶部全局 Refresh 同时刷新全部利率和仓位。刷新期间保留上次数据，面板显示 Refreshing 和进度动画；收到结果后原位更新，变化的数值短暂高亮，保留表格滚动位置。失败结果明确显示 unavailable / error，不保留为最新数据；按钮区分 Updated 和 Partial update。首次加载使用占位动画，尊重系统减少动态效果设置。
 
-顶部 Platform 筛选支持 All platforms、Binance、Bitget、OKX，同时作用于利率、仓位、数量统计、最优利率标记和 Portfolio Summary；汇总仅计算当前筛选的平台。选择存入浏览器 localStorage（`rate-monitor.platform`），重新打开恢复，存储受限时仍可在当前页面筛选。切换筛选不请求 API，Refresh 继续采集全部平台。本地存储仅保存筛选偏好，不保存账户数据。
+顶部平台筛选使用复选框，可同时选择 Binance、Bitget、OKX 的任意组合，All platforms 支持全选和清空；全部取消时显示明确的空选提示并隐藏汇总。筛选同时作用于利率、仓位、数量统计、最优利率标记和 Portfolio Summary；汇总仅计算勾选的平台。选择以 JSON 数组存入浏览器 localStorage（`rate-monitor.platform`），重新打开恢复，并兼容旧单选偏好；存储受限时仍可在当前页面筛选。切换筛选不请求 API，Refresh 继续采集全部平台。本地存储仅保存筛选偏好，不保存账户数据。
 
 Bitget Savings 的账户总估值不再作为仓位行插入明细列表，而是在独立的 Total value 汇总栏展示；它与 Flexible / Fixed Savings 明细属于总额和组成部分，不相加。持仓明细仍保留近三个月创建范围的 partial 标记，历史持仓缺失时总估值不会被静默丢弃。
 

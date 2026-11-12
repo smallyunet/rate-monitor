@@ -1,5 +1,5 @@
 import { productEarnTiers } from './earn-apr.js';
-import { filterPlatform, updateContent, relativeTime } from './view-state.js';
+import { PLATFORMS, filterPlatform, updateContent, relativeTime } from './view-state.js';
 // Check decimal strings without converting tiny balances to floating-point zero.
 const positiveAmount = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && /[1-9]/.test(value);
 export function visiblePositions(section) {
@@ -75,7 +75,7 @@ export function mergePlatformCells(body) {
   }
 }
 
-export function mountPositions({ el, logoLabel, platform = 'all' }) {
+export function mountPositions({ el, logoLabel, platform = [...PLATFORMS] }) {
   const contents = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-positions-content="${kind}"]`)]));
   const statuses = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-position-status="${kind}"]`)]));
   const setStatus = text => Object.values(statuses).forEach(status => { status.textContent = text; });
@@ -226,8 +226,8 @@ export function mountPositions({ el, logoLabel, platform = 'all' }) {
       content.append(el('div', 'note', 'OKX estimates assume bonus eligibility is valid and funds are lent; before fees.'));
     }
     updateContent(document.querySelector('#portfolio-content'), content, options);
-    document.querySelector('#portfolio-summary .status-badge').textContent = `Estimated · ${platform === 'all' ? 'All platforms' : platform}`;
-    document.querySelector('#portfolio-summary').hidden = false;
+    document.querySelector('#portfolio-summary .status-badge').textContent = `Estimated · ${platform.length === PLATFORMS.length ? 'All platforms' : platform.join(' + ')}`;
+    document.querySelector('#portfolio-summary').hidden = !platform.length;
   }
   function render(allSections, options) {
     latestSections = allSections;

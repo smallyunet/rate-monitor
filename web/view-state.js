@@ -1,17 +1,22 @@
 export const PLATFORM_STORAGE_KEY = 'rate-monitor.platform';
-const platforms = ['all', 'Binance', 'Bitget', 'OKX'];
+export const PLATFORMS = ['Binance', 'Bitget', 'OKX'];
+const normalizePlatforms = values => Array.isArray(values) && values.every(value => PLATFORMS.includes(value))
+  ? PLATFORMS.filter(platform => values.includes(platform)) : [...PLATFORMS];
 export function readPlatform(storage) {
   try {
     const value = storage.getItem(PLATFORM_STORAGE_KEY);
-    return platforms.includes(value) ? value : 'all';
-  } catch { return 'all'; }
+    // Preserve choices saved by the previous single-select control.
+    if (PLATFORMS.includes(value)) return [value];
+    if (!value || value === 'all') return [...PLATFORMS];
+    return normalizePlatforms(JSON.parse(value));
+  } catch { return [...PLATFORMS]; }
 }
 export function savePlatform(storage, value) {
-  try { storage.setItem(PLATFORM_STORAGE_KEY, platforms.includes(value) ? value : 'all'); }
+  try { storage.setItem(PLATFORM_STORAGE_KEY, JSON.stringify(normalizePlatforms(value))); }
   catch { /* The filter still works when browser storage is unavailable. */ }
 }
 export function filterPlatform(items, platform) {
-  return platform === 'all' ? items : items.filter(item => item.platform === platform);
+  return items.filter(item => platform.includes(item.platform));
 }
 export function relativeTime(value) {
   const timestamp = Date.parse(value);

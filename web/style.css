@@ -19,9 +19,18 @@ button:hover { border-color: #697482; background: #2b3139; }
 .refresh-icon { flex: none; }
 #refresh[aria-busy="true"] .refresh-icon { animation: refresh-spin 1s linear infinite; }
 #refresh[data-state="done"] { color: #72d5bb; border-color: #356b59; background: #1b332c; }
-.platform-filter { display: flex; align-items: center; gap: 7px; color: var(--muted); }
-.platform-filter select { min-height: 30px; max-width: 145px; padding: 4px 22px 4px 8px; border: 1px solid #3b424d; border-radius: 4px; color: var(--text); background: var(--raised); font: inherit; cursor: pointer; }
-.platform-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.platform-filter { position: relative; color: var(--text); }
+.platform-filter summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; padding: 4px 9px; border: 1px solid #3b424d; border-radius: 4px; background: var(--raised); cursor: pointer; list-style: none; white-space: nowrap; }
+.platform-filter summary::-webkit-details-marker { display: none; }
+.platform-filter summary:hover, .platform-filter[open] summary { border-color: #947620; }
+.platform-filter summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.filter-chevron { color: var(--muted); }
+.platform-filter[open] .filter-chevron { transform: rotate(180deg); }
+.platform-options { position: absolute; z-index: 20; top: calc(100% + 7px); right: 0; width: 180px; margin: 0; padding: 5px; border: 1px solid #454e5b; border-radius: 6px; background: var(--raised); box-shadow: 0 10px 28px #0008; }
+.platform-options label { display: flex; align-items: center; gap: 9px; min-height: 36px; padding: 6px 9px; border-radius: 3px; cursor: pointer; }
+.platform-options label:hover, .platform-options label:focus-within { background: #303741; }
+.platform-options input { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.platform-options .platform-all { margin-bottom: 4px; padding-bottom: 10px; border-bottom: 1px solid #454e5b; border-radius: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @keyframes refresh-spin { to { transform: rotate(360deg); } }
 button:disabled { opacity: .6; cursor: wait; }
@@ -105,8 +114,9 @@ tbody tr:hover { background: var(--hover); }
   main > header { height: auto; min-height: 56px; gap: 8px; padding: 10px; flex-wrap: wrap; }
   h1 { font-size: 15px; }
   nav { gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-  .platform-filter > span { display: none; }
-  .platform-filter select { min-height: 36px; max-width: 125px; }
+  .platform-filter summary { min-height: 36px; }
+  .platform-options label { min-height: 40px; }
+  .platform-options { left: 0; right: auto; }
   nav a, button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; }
   .panel-heading, .positions-header { padding: 7px 10px; }
   .panel-actions { gap: 7px; }

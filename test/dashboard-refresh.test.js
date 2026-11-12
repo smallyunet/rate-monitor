@@ -2,23 +2,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { parseHTML } from 'linkedom';
-import { PLATFORM_STORAGE_KEY, readPlatform, savePlatform, filterPlatform, updateContent } from '../web/view-state.js';
+import { PLATFORMS, PLATFORM_STORAGE_KEY, readPlatform, savePlatform, filterPlatform, updateContent } from '../web/view-state.js';
 
 test('platform preference survives reload and tolerates invalid or blocked storage', () => {
   const values = new Map();
   const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
-  assert.equal(readPlatform(storage), 'all');
-  savePlatform(storage, 'OKX');
-  assert.equal(values.get(PLATFORM_STORAGE_KEY), 'OKX');
-  assert.equal(readPlatform(storage), 'OKX');
+  assert.deepEqual(readPlatform(storage), PLATFORMS);
+  savePlatform(storage, ['Binance', 'OKX']);
+  assert.deepEqual(JSON.parse(values.get(PLATFORM_STORAGE_KEY)), ['Binance', 'OKX']);
+  assert.deepEqual(readPlatform(storage), ['Binance', 'OKX']);
+  values.set(PLATFORM_STORAGE_KEY, 'OKX');
+  assert.deepEqual(readPlatform(storage), ['OKX']);
+  values.set(PLATFORM_STORAGE_KEY, 'all');
+  assert.deepEqual(readPlatform(storage), PLATFORMS);
+  savePlatform(storage, []);
+  assert.deepEqual(readPlatform(storage), []);
+  savePlatform(storage, ['OKX', 'OKX', 'Binance']);
+  assert.deepEqual(readPlatform(storage), ['Binance', 'OKX']);
   values.set(PLATFORM_STORAGE_KEY, '<invalid>');
-  assert.equal(readPlatform(storage), 'all');
+  assert.deepEqual(readPlatform(storage), PLATFORMS);
   const blocked = { getItem() { throw Error(); }, setItem() { throw Error(); } };
-  assert.equal(readPlatform(blocked), 'all');
-  assert.doesNotThrow(() => savePlatform(blocked, 'Bitget'));
+  assert.deepEqual(readPlatform(blocked), PLATFORMS);
+  assert.doesNotThrow(() => savePlatform(blocked, ['Bitget']));
   const items = [{ platform: 'Binance' }, { platform: 'OKX' }];
-  assert.deepEqual(filterPlatform(items, 'OKX'), [items[1]]);
-  assert.equal(filterPlatform(items, 'all'), items);
+  assert.deepEqual(filterPlatform(items, ['OKX']), [items[1]]);
+  assert.deepEqual(filterPlatform(items, PLATFORMS), items);
+  assert.deepEqual(filterPlatform(items, []), []);
 });
 
 test('in-place updates retain keyed rows, scroll containers and only highlight changed values', t => {
@@ -51,12 +60,12 @@ test('in-place updates retain keyed rows, scroll containers and only highlight c
 
 test('dashboard refresh retains data until completion, filters every panel and clears failed private data', async t => {
   const { window, document } = parseHTML(await readFile('web/index.html', 'utf8'));
-  // linkedom omits the native select.value setter. Model its standard behavior.
-  const select = document.querySelector('#platform-filter');
-  Object.defineProperty(select, 'value', {
-    get() { return this.querySelector('option[selected]')?.getAttribute('value') || 'all'; },
-    set(value) { for (const option of this.querySelectorAll('option')) option.toggleAttribute('selected', option.getAttribute('value') === value); },
-  });
+  const filter = document.querySelector('#platform-filter');
+  const options = [...document.querySelectorAll('input[name="platform"]')];
+  const selectPlatforms = platforms => {
+    for (const option of options) option.checked = platforms.includes(option.value);
+    options[0].dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
   const stored = new Map([[PLATFORM_STORAGE_KEY, 'OKX']]);
   const globals = ['window', 'document', 'localStorage'];
   const original = globals.map(key => Object.getOwnPropertyDescriptor(globalThis, key));
@@ -85,7 +94,7 @@ test('dashboard refresh retains data until completion, filters every panel and c
   const resolvePositions = data => pending.splice(pending.findIndex(p => p.url === '/private/api/positions'), 1)[0].resolve(Response.json({ sections: data }));
   await import(`../web/app.js?dashboard-test=${Date.now()}`);
   const button = document.querySelector('#refresh');
-  assert.equal(select.value, 'OKX');
+  assert.deepEqual(options.filter(n => n.checked).map(n => n.value), ['OKX']);
   assert.equal(document.querySelectorAll('#loan-rows tr').length, 2);
   resolveRates(products(.03)); resolvePositions(sections(100));
   await waitFor(() => !button.disabled);
@@ -112,20 +121,41 @@ test('dashboard refresh retains data until completion, filters every panel and c
   assert.equal(document.querySelector('[data-positions-content="earn"] .table-wrap'), wrap);
   assert.equal(wrap.scrollLeft, 80);
   const callCount = calls.length;
-  select.value = 'Binance'; select.dispatchEvent(new window.Event('change'));
+  selectPlatforms(['Binance']);
   assert.equal(calls.length, callCount);
-  assert.equal(stored.get(PLATFORM_STORAGE_KEY), 'Binance');
+  assert.deepEqual(JSON.parse(stored.get(PLATFORM_STORAGE_KEY)), ['Binance']);
   assert.ok(Array.from(document.querySelectorAll('[data-platform]')).every(node => node.dataset.platform === 'Binance'));
   assert.match(document.querySelector('#portfolio-content').textContent, /999\.00/);
   assert.match(document.querySelector('#portfolio-summary .status-badge').textContent, /Binance/);
-  select.value = 'all'; select.dispatchEvent(new window.Event('change'));
+  selectPlatforms(['Binance', 'OKX']);
+  assert.equal(calls.length, callCount);
+  assert.equal(document.querySelectorAll('#loan-rows tr').length, 4);
+  assert.ok(Array.from(document.querySelectorAll('[data-platform]')).every(node => ['Binance', 'OKX'].includes(node.dataset.platform)));
+  assert.match(document.querySelector('#portfolio-content').textContent, /1,149\.00/);
+  assert.equal(document.querySelector('#platform-all').indeterminate, true);
+  assert.equal(document.querySelector('#platform-label').textContent, 'Binance + OKX');
+  assert.deepEqual(JSON.parse(stored.get(PLATFORM_STORAGE_KEY)), ['Binance', 'OKX']);
+  filter.open = true;
+  document.querySelector('summary').focus = () => {};
+  const escape = new window.Event('keydown', { bubbles: true }); escape.key = 'Escape';
+  document.dispatchEvent(escape);
+  assert.equal(filter.open, false);
+  selectPlatforms([]);
+  assert.equal(document.querySelector('#platform-empty').hidden, false);
+  assert.equal(document.querySelector('#loan-rows').childElementCount, 0);
+  assert.equal(document.querySelector('#portfolio-summary').hidden, true);
+  assert.deepEqual(JSON.parse(stored.get(PLATFORM_STORAGE_KEY)), []);
+  const all = document.querySelector('#platform-all');
+  all.checked = true; all.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.equal(document.querySelector('#platform-empty').hidden, true);
   assert.equal(document.querySelectorAll('#loan-rows tr').length, 6);
+  assert.ok(options.every(option => option.checked));
   button.click();
   const partial = products(.05).map(p => p.platform === 'Bitget' && p.kind === 'loan' ? { ...p, status: 'error' } : p);
   resolveRates(partial);
   await waitFor(() => pending.some(p => p.url.startsWith('https://api.bitget.com/')));
   assert.match(document.querySelector('#loan-rows tr').textContent, /5\.00%/, 'available platforms publish before fallback finishes');
-  select.value = 'OKX'; select.dispatchEvent(new window.Event('change'));
+  selectPlatforms(['OKX']);
   resolvePositions(sections(200));
   pending.splice(pending.findIndex(p => p.url.startsWith('https://api.bitget.com/')), 1)[0].resolve(Response.json({ code: '00000', data: {
     loanInfos: [{ coin: 'USDC', rateFlexible: '.06' }, { coin: 'USDT', rateFlexible: '.06' }],
@@ -134,7 +164,7 @@ test('dashboard refresh retains data until completion, filters every panel and c
   await waitFor(() => !button.disabled);
   assert.equal(button.dataset.state, 'done');
   assert.ok(Array.from(document.querySelectorAll('[data-platform]')).every(node => node.dataset.platform === 'OKX'), 'in-flight results respect the latest filter');
-  select.value = 'all'; select.dispatchEvent(new window.Event('change'));
+  selectPlatforms(PLATFORMS);
   assert.match(document.querySelector('#loan-rows tr[data-platform="Bitget"]').textContent, /6\.00%/);
   button.click();
   pending.splice(pending.findIndex(p => p.url === '/api/rates'), 1)[0].reject(Error('offline'));
