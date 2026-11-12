@@ -169,13 +169,6 @@ export function mountPositions({ el, logoLabel, platform = [...PLATFORMS] }) {
           if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
           details.append(amountLine('', r.amount, r.asset, false, apr));
-          if (apr?.estimated) details.append(el('div', 'secondary', apr.assumesBonusEligibility
-            ? 'Assumes bonus eligibility is valid · before fees'
-            : 'Estimated from market tiers · before fees'));
-          if (section.platform === 'OKX') {
-            details.append(amountLine('Lent: ', r.lendingAmount, r.asset, true));
-            details.append(amountLine('Pending lending: ', r.pendingAmount, r.asset, true));
-          }
           if (positiveAmount(r.collateralAmount)) details.append(amountLine('Used as collateral: ', r.collateralAmount, r.asset, true));
           for (const profit of earnProfitLines(r)) details.append(amountLine(profit.label, profit.value, profit.asset, true));
         }
