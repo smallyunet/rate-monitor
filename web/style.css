@@ -13,13 +13,28 @@ a:hover { color: var(--accent); }
 nav { gap: 16px; font-size: 11px; }
 button { padding: 4px 9px; border: 1px solid #3b424d; border-radius: 4px; background: var(--raised); color: inherit; font: inherit; font-size: 11px; cursor: pointer; }
 button:hover { border-color: #697482; background: #2b3139; }
-#refresh { color: var(--accent); border-color: #5c4c1d; background: #30291a; }
+#refresh { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 122px; min-height: 30px; color: var(--accent); border-color: #5c4c1d; background: #30291a; transition: background-color .18s, border-color .18s, color .18s; }
 #refresh:hover { background: #40351a; border-color: #947620; }
+#refresh:disabled { opacity: 1; }
+.refresh-icon { flex: none; }
+#refresh[aria-busy="true"] .refresh-icon { animation: refresh-spin 1s linear infinite; }
+#refresh[data-state="done"] { color: #72d5bb; border-color: #356b59; background: #1b332c; }
+.platform-filter { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+.platform-filter select { min-height: 30px; max-width: 145px; padding: 4px 22px 4px 8px; border: 1px solid #3b424d; border-radius: 4px; color: var(--text); background: var(--raised); font: inherit; cursor: pointer; }
+.platform-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
 button:disabled { opacity: .6; cursor: wait; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .dashboard { display: grid; grid-template-columns: minmax(0, min(780px, 50%)) minmax(0, 1fr); gap: 16px; align-items: start; }
 .rates-column, .positions-column { display: grid; gap: 16px; min-width: 0; }
-.panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.panel { position: relative; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.panel::after { content: ''; position: absolute; pointer-events: none; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0; }
+[aria-busy="true"] > .panel::after { opacity: .8; animation: refresh-sweep 1.6s ease-in-out infinite; }
+[aria-busy="true"] > .panel .status-badge { color: #e6c45f; }
+.loading-value .cell-value { display: block; width: 72px; height: 16px; border-radius: 3px; color: transparent; background: #30353f; animation: loading-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes refresh-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes loading-pulse { to { opacity: .35; } }
 .panel-heading, .positions-header { justify-content: space-between; background: #1e2329; min-height: 50px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .section-title, #positions-title { margin: 0; font-size: 14px; font-weight: 500; }
 .panel-title { gap: 8px; min-width: 0; }
@@ -87,9 +102,11 @@ tbody tr:hover { background: var(--hover); }
 }
 @media (max-width: 680px) {
   main { padding: 0 0 16px; }
-  main > header { height: 56px; gap: 8px; padding: 0 10px; }
+  main > header { height: auto; min-height: 56px; gap: 8px; padding: 10px; flex-wrap: wrap; }
   h1 { font-size: 15px; }
-  nav { gap: 10px; }
+  nav { gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .platform-filter > span { display: none; }
+  .platform-filter select { min-height: 36px; max-width: 125px; }
   nav a, button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; }
   .panel-heading, .positions-header { padding: 7px 10px; }
   .panel-actions { gap: 7px; }
@@ -151,6 +168,13 @@ tbody tr:hover { background: var(--hover); }
 .portfolio-table th { width: 150px; background: transparent; font-size: 12px; }
 .portfolio-table td { white-space: nowrap; }
 .portfolio-table td.secondary { font-size: 11px; }
+@media (max-width: 460px) {
+  main > header { align-items: flex-start; }
+  main > header nav { width: 100%; justify-content: space-between; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #refresh, #refresh .refresh-icon, .panel::after, .loading-value .cell-value { animation: none !important; transition: none !important; }
+}
 @media (max-width: 680px) {
   .portfolio-table tr { grid-template-columns: 1fr; gap: 4px; }
   .portfolio-table th, .portfolio-table td { width: auto; padding: 0; border: 0; white-space: normal; }

@@ -8,7 +8,7 @@ const directory = new URL('../dist/', import.meta.url);
 const appPath = new URL('app.js', directory);
 let app = await readFile(appPath, 'utf8');
 const moduleNames = new Map();
-for (const module of ['earn-apr', 'bitget', 'positions']) {
+for (const module of ['earn-apr', 'bitget', 'view-state', 'positions']) {
   let moduleContent = await readFile(new URL(`${module}.js`, directory), 'utf8');
   for (const [dependency, name] of moduleNames) moduleContent = moduleContent.replaceAll(`./${dependency}.js`, `./${name}`);
   const hash = createHash('sha256').update(moduleContent).digest('hex').slice(0, 12);

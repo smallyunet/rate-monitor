@@ -1,4 +1,5 @@
 import { productEarnTiers } from './earn-apr.js';
+import { filterPlatform, updateContent, relativeTime } from './view-state.js';
 // Check decimal strings without converting tiny balances to floating-point zero.
 const positiveAmount = value => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value) && /[1-9]/.test(value);
 export function visiblePositions(section) {
@@ -74,16 +75,18 @@ export function mergePlatformCells(body) {
   }
 }
 
-export function mountPositions({ el, logoLabel }) {
+export function mountPositions({ el, logoLabel, platform = 'all' }) {
   const contents = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-positions-content="${kind}"]`)]));
   const statuses = Object.fromEntries(['loan', 'earn'].map(kind => [kind, document.querySelector(`[data-position-status="${kind}"]`)]));
   const setStatus = text => Object.values(statuses).forEach(status => { status.textContent = text; });
   const signIn = document.querySelector('#sign-in');
   const signOut = document.querySelector('#sign-out');
-  let controller, generation = 0, signingOut = false, latestSections = null, latestRates = [];
+  let controller, generation = 0, signingOut = false, refreshing = false, latestSections = null, latestRates = [];
   const quantity = (value, coin) => value == null ? '—' : `${value} ${coin}`;
   function clear() {
     latestSections = null;
+    refreshing = false;
+    document.querySelector('#positions').setAttribute('aria-busy', 'false');
     document.querySelector('#portfolio-summary').hidden = true;
     document.querySelector('#portfolio-content').replaceChildren();
     Object.values(contents).forEach(content => { content.replaceChildren(); content.hidden = true; });
@@ -91,6 +94,7 @@ export function mountPositions({ el, logoLabel }) {
   }
   function cell(row, label, value) {
     const td = el('td'); td.dataset.label = label; td.setAttribute('role', 'cell');
+    if (['Position', 'Liquidation'].includes(label)) td.setAttribute('data-live-value', '');
     const wrapper = el('div', 'cell-value');
     wrapper.append(typeof value === 'string' ? document.createTextNode(value) : value);
     td.append(wrapper); row.append(td);
@@ -128,7 +132,8 @@ export function mountPositions({ el, logoLabel }) {
     view.append(foot);
     return view;
   }
-  function renderGroup(content, sections, kind) {
+  function renderGroup(target, sections, kind, options) {
+    const content = el('div');
     const labels = ['Platform', 'Product', 'Assets', 'Position', ...(kind === 'loan' ? ['Liquidation'] : []), 'Updated'];
     const table = el('table'); table.setAttribute('aria-label', `${kind === 'loan' ? 'Loan' : 'Earn'} positions`); table.setAttribute('role', 'table');
     const head = el('thead'); const heading = el('tr');
@@ -141,8 +146,13 @@ export function mountPositions({ el, logoLabel }) {
       const successful = ['ok', 'partial'].includes(section.status);
       const records = visiblePositions(section);
       if (!successful) failures.append(el('div', '', `${section.platform} ${section.product}: ${section.status === 'not_configured' ? 'API key not configured' : `Unavailable · ${section.error || 'request failed'}${section.upstreamCode ? ` (${section.upstreamCode})` : ''}`}`));
+      const occurrences = new Map();
       for (const r of records) {
         const row = el('tr'); row.setAttribute('role', 'row'); row.dataset.platform = section.platform;
+        const identity = JSON.stringify([section.platform, section.product, r.product, r.asset, r.collateral]);
+        const occurrence = occurrences.get(identity) || 0;
+        occurrences.set(identity, occurrence + 1);
+        row.dataset.key = `${identity}:${occurrence}`;
         cell(row, labels[0], logoLabel(section.platform));
         cell(row, labels[1], r.product || section.product);
         const assets = el('div', 'asset-pair');
@@ -171,7 +181,7 @@ export function mountPositions({ el, logoLabel }) {
         }
         cell(row, labels[3], details);
         if (kind === 'loan') cell(row, 'Liquidation', riskView(r));
-        const updated = el('span', '', '—');
+        const updated = el('span', '', relativeTime(section.fetchedAt));
         if (section.fetchedAt) { updated.dataset.updatedAt = section.fetchedAt; updated.title = new Date(section.fetchedAt).toISOString(); }
         cell(row, 'Updated', updated); body.append(row);
       }
@@ -181,14 +191,15 @@ export function mountPositions({ el, logoLabel }) {
     const wrap = el('div', 'table-wrap'); wrap.append(table);
     content.replaceChildren();
     if (body.childElementCount) content.append(wrap);
-    else if (!failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', sections.some(section => section.status === 'partial') ? 'No position details' : 'No positions'));
+    else if (!failures.childElementCount && !coverage.childElementCount) content.append(el('p', 'note', !sections.length ? 'No products for this platform' : sections.some(section => section.status === 'partial') ? 'No position details' : 'No positions'));
     if (failures.childElementCount) content.append(failures);
     if (coverage.childElementCount) content.append(coverage);
-    content.hidden = false;
+    updateContent(target, content, options);
+    target.hidden = false;
   }
-  function renderPortfolio(sections) {
+  function renderPortfolio(sections, options) {
     const summary = portfolioSummary(sections, latestRates);
-    const content = document.querySelector('#portfolio-content');
+    const content = el('div');
     const money = value => value === null ? '—' : `≈ $${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const percent = value => value === null ? '—' : `${(value * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
     const pp = value => value === null ? '—' : `${(value * 100).toFixed(2)} pp`;
@@ -196,9 +207,11 @@ export function mountPositions({ el, logoLabel }) {
     const body = el('tbody'); table.append(body);
     const add = (label, value, detail) => {
       const row = el('tr');
+      row.dataset.key = label;
       const name = el('th', '', label); name.scope = 'row';
       const amount = el('td', 'position-amount', value);
       const note = el('td', 'secondary', detail);
+      amount.setAttribute('data-live-value', ''); note.setAttribute('data-live-value', '');
       row.append(name, amount, note); body.append(row);
     };
     add('Loan collateral', summary.collateral.map(([coin, amount]) => `${amount.toLocaleString('en-US', { maximumFractionDigits: 8 })} ${coin}`).join(' + ') || '—', `${money(summary.collateralUsd)} · implied by LTV`);
@@ -212,25 +225,29 @@ export function mountPositions({ el, logoLabel }) {
     if (sections.some(section => visiblePositions(section).some(row => positionRate(row, section, latestRates)?.assumesBonusEligibility))) {
       content.append(el('div', 'note', 'OKX estimates assume bonus eligibility is valid and funds are lent; before fees.'));
     }
+    updateContent(document.querySelector('#portfolio-content'), content, options);
+    document.querySelector('#portfolio-summary .status-badge').textContent = `Estimated · ${platform === 'all' ? 'All platforms' : platform}`;
     document.querySelector('#portfolio-summary').hidden = false;
   }
-  function render(sections) {
-    latestSections = sections;
-    renderPortfolio(sections);
+  function render(allSections, options) {
+    latestSections = allSections;
+    const sections = filterPlatform(allSections, platform);
+    renderPortfolio(sections, options);
     for (const kind of ['loan', 'earn']) {
       const group = sections.filter(section => positionKind(section) === kind);
-      renderGroup(contents[kind], group, kind);
+      renderGroup(contents[kind], group, kind, options);
       const ok = group.filter(section => ['ok', 'partial'].includes(section.status)).length;
-      statuses[kind].textContent = `${ok} / ${group.length}`;
+      statuses[kind].textContent = refreshing ? 'Refreshing…' : group.length ? `${ok} / ${group.length}` : 'No products';
     }
   }
   async function load() {
     if (signingOut) return;
     controller?.abort(); controller = new AbortController();
     const current = ++generation;
-    document.querySelector('#positions').setAttribute('aria-busy', 'true'); setStatus('Loading…');
+    refreshing = true;
+    document.querySelector('#positions').setAttribute('aria-busy', 'true'); setStatus(latestSections ? 'Refreshing…' : 'Loading…');
     try {
-      const response = await fetch('/private/api/positions', { cache: 'no-store', redirect: 'manual', signal: controller.signal });
+      const response = await fetch('/private/api/positions', { cache: 'no-store', redirect: 'manual', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]) });
       if (current !== generation) return;
       if (response.type === 'opaqueredirect' || [0, 401, 403].includes(response.status)) { clear(); setStatus(''); return; }
       if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error();
@@ -239,10 +256,18 @@ export function mountPositions({ el, logoLabel }) {
       if (!Array.isArray(data.sections) || data.sections.some(s => !Array.isArray(s.rows))) throw new Error();
       render(data.sections);
       signIn.hidden = true; signOut.hidden = false;
+      return data.sections.every(section => section.status === 'ok');
     } catch (error) {
       if (current !== generation || error.name === 'AbortError') return;
       clear(); setStatus('Positions unavailable');
-    } finally { if (current === generation) document.querySelector('#positions').setAttribute('aria-busy', 'false'); }
+      return false;
+    } finally {
+      if (current === generation) {
+        refreshing = false;
+        if (latestSections) render(latestSections, { animate: false });
+        document.querySelector('#positions').setAttribute('aria-busy', 'false');
+      }
+    }
   }
   signOut.addEventListener('click', async () => {
     signingOut = true; ++generation; controller?.abort(); clear(); setStatus('Signing out…'); signIn.hidden = true;
@@ -258,6 +283,9 @@ export function mountPositions({ el, logoLabel }) {
   return { refresh: load, setRates(products) {
     latestRates = products;
     if (latestSections) render(latestSections);
+  }, setPlatform(value) {
+    platform = value;
+    if (latestSections) render(latestSections, { animate: false });
   } };
 }
 

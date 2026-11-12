@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check worker/index.js && node --check web/app.js && node --check server/app.js && node --check server/http-adapter.js && node --check web/positions.js",
+    "check": "node --check worker/index.js && node --check web/app.js && node --check server/app.js && node --check server/http-adapter.js && node --check web/positions.js && node --check web/view-state.js",
     "build": "node scripts/build.js",
     "build:worker": "node scripts/build-worker.js"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "linkedom": "^0.18.15"
   }
 }

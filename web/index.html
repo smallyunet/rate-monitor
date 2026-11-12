@@ -10,7 +10,7 @@
 </head>
 <body>
   <main>
-    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1></div><nav><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button" aria-label="Refresh rates and positions">Refresh</button></nav></header>
+    <header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><h1>Rate Monitor</h1></div><nav aria-label="Dashboard controls"><label class="platform-filter"><span>Platform</span><select id="platform-filter" aria-label="Filter by platform"><option value="all">All platforms</option><option value="Binance">Binance</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option></select></label><a href="/private/" id="sign-in">Sign in</a><button id="sign-out" hidden type="button">Sign out</button><a href="https://github.com/smallyunet/rate-monitor" target="_blank" rel="noopener noreferrer">GitHub</a><button id="refresh" type="button" aria-label="Refresh rates and positions" aria-busy="false"><svg class="refresh-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 6.1A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.9"/></svg><span class="refresh-label">Refresh</span></button><span id="refresh-status" class="sr-only" role="status"></span></nav></header>
     <div class="dashboard">
     <div id="rates" class="rates-column" aria-busy="true">
     <section class="panel rates-panel" aria-labelledby="loan-title">

@@ -1,7 +1,13 @@
 import { mountPositions, mergePlatformCells } from './positions.js';
 import { productEarnTiers, rateHighlights } from './earn-apr.js';
 import { publicBitgetRates } from './bitget.js';
+import { readPlatform, savePlatform, filterPlatform, updateContent, relativeTime } from './view-state.js';
 const ENDPOINT = '/api/rates';
+const platformSelect = document.querySelector('#platform-filter');
+let platform = 'all';
+try { platform = readPlatform(localStorage); } catch { /* Storage may be disabled. */ }
+platformSelect.value = platform;
+let latestProducts = [], ratesRefreshing = false;
 const descriptors = [
   { id: 'binance-loan-usdc', platform: 'Binance', kind: 'loan', asset: 'USDC', name: 'Flexible Loan', collateral: 'BTC' },
   { id: 'binance-loan-usdt', platform: 'Binance', kind: 'loan', asset: 'USDT', name: 'Flexible Loan', collateral: 'BTC' },
@@ -28,15 +34,6 @@ const percent = value => typeof value === 'number' && Number.isFinite(value)
   ? `${(value * 100).toLocaleString('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 })}%` : '—';
 const time = value => value && Number.isFinite(Date.parse(value))
   ? new Date(value).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC') : '—';
-function relativeTime(value) {
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return '—';
-  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
 function setUpdatedTime(node, value) {
   node.dataset.updatedAt = value || '';
   node.title = time(value);
@@ -92,13 +89,15 @@ function rateBadge(label) {
   badge.title = label === 'min' ? 'Lowest APR in the Loan list' : 'Highest first-tier APR in the Earn list';
   return badge;
 }
-function render(products) {
+function render(allProducts, { animate = true } = {}) {
+  latestProducts = allProducts;
+  const products = filterPlatform(allProducts, platform);
   const highlights = rateHighlights(products);
-  const bodies = { loan: document.querySelector('#loan-rows'), earn: document.querySelector('#earn-rows') };
-  Object.values(bodies).forEach(body => body.replaceChildren());
+  const bodies = { loan: el('tbody'), earn: el('tbody') };
   document.querySelector('#config').hidden = !products.some(p => p.platform === 'Binance' && p.status === 'not_configured');
   for (const p of products) {
     const row = el('tr', `rate-row ${p.kind}-row`);
+    row.dataset.key = p.id;
     row.dataset.platform = p.platform;
     const platform = el('td');
     platform.append(logoLabel(p.platform));
@@ -112,6 +111,8 @@ function render(products) {
     pair.append(logoLabel(p.asset));
     assets.append(pair);
     const apr = el('td', p.kind === 'loan' ? 'apr' : 'tier-aprs', p.status === 'ok' && p.kind === 'loan' ? percent(p.apr) : '—');
+    apr.setAttribute('data-live-value', '');
+    apr.classList.toggle('loading-value', p.status === 'loading');
     if (p.kind === 'earn') {
       renderEarn(p, apr, highlights.max.has(p.id));
     }
@@ -148,21 +149,22 @@ function render(products) {
     });
     bodies[p.kind].append(row);
   }
-  Object.values(bodies).forEach(mergePlatformCells);
-  positionsView.setRates(products);
+  for (const [kind, body] of Object.entries(bodies)) {
+    mergePlatformCells(body);
+    updateContent(document.querySelector(`#${kind}-rows`), body, { animate });
+  }
   for (const kind of ['loan', 'earn']) {
     const list = products.filter(p => p.kind === kind);
-    document.querySelector(`[data-rate-status="${kind}"]`).textContent = list.some(p => p.status === 'loading')
-      ? 'Loading…' : `${list.filter(p => p.status === 'ok').length} / ${list.length}`;
+    document.querySelector(`[data-rate-status="${kind}"]`).textContent = ratesRefreshing
+      ? latestProducts.some(p => p.status === 'loading') ? 'Loading…' : 'Refreshing…'
+      : `${list.filter(p => p.status === 'ok').length} / ${list.length}`;
   }
 }
 async function refresh() {
+  ratesRefreshing = true;
   document.querySelector('#rates').setAttribute('aria-busy', 'true');
-  for (const node of document.querySelectorAll('[data-rates-updated]')) {
-    node.textContent = ''; delete node.dataset.updatedAt; node.removeAttribute('title');
-  }
-  // Clear old quotes so a failed refresh cannot appear to be current.
-  render(descriptors.map(p => ({ ...p, status: 'loading', apr: null })));
+  // Retain the last view while fetching; failures below replace old values explicitly.
+  render(latestProducts.length ? latestProducts : descriptors.map(p => ({ ...p, status: 'loading', apr: null })), { animate: false });
   try {
     const response = await fetch(ENDPOINT, { cache: 'no-store', signal: AbortSignal.timeout(65000) });
     if (!response.ok) throw new Error('service_error');
@@ -172,17 +174,28 @@ async function refresh() {
       const p = data.products.find(p => p.id === d.id);
       return p ? { ...p, ...d } : { ...d, status: 'error', apr: null, error: 'invalid_data' };
     });
+    // Publish available results before waiting on the slower public fallback.
+    render(products);
+    positionsView.setRates(products);
+    document.querySelectorAll('[data-rates-updated]').forEach(node => setUpdatedTime(node, data.requestedAt));
     if (products.some(p => p.platform === 'Bitget' && p.kind === 'loan' && p.status === 'error')) {
       const fallback = await publicBitgetRates();
       products = products.map(p => p.platform === 'Bitget' && p.kind === 'loan' && p.status === 'error'
         ? fallback.find(item => item.id === p.id) || p : p);
+      render(products);
+      positionsView.setRates(products);
     }
-    render(products);
-    document.querySelectorAll('[data-rates-updated]').forEach(node => setUpdatedTime(node, data.requestedAt));
+    return products.every(p => p.status === 'ok');
   } catch {
     render(descriptors.map(p => ({ ...p, status: 'error', apr: null, error: 'service_error' })));
-    document.querySelectorAll('[data-rate-status]').forEach(node => { node.textContent = 'Connection failed'; });
+    positionsView.setRates(latestProducts);
+    for (const node of document.querySelectorAll('[data-rates-updated]')) {
+      node.textContent = ''; delete node.dataset.updatedAt; node.removeAttribute('title');
+    }
+    return false;
   } finally {
+    ratesRefreshing = false;
+    render(latestProducts, { animate: false });
     document.querySelector('#rates').setAttribute('aria-busy', 'false');
   }
 }
@@ -194,18 +207,37 @@ setInterval(() => {
     if (node.textContent !== label) node.textContent = label;
   }
 }, 1000);
-const positionsView = mountPositions({ el, logoLabel });
+const positionsView = mountPositions({ el, logoLabel, platform });
+platformSelect.addEventListener('change', () => {
+  platform = platformSelect.value;
+  try { savePlatform(localStorage, platform); } catch { /* Keep in-memory selection. */ }
+  render(latestProducts, { animate: false });
+  positionsView.setPlatform(platform);
+});
 const refreshButton = document.querySelector('#refresh');
+const refreshLabel = refreshButton.querySelector('.refresh-label');
+let feedbackTimer;
 async function refreshAll() {
   if (refreshButton.disabled) return;
+  clearTimeout(feedbackTimer);
   refreshButton.disabled = true;
-  refreshButton.textContent = 'Refreshing…';
+  refreshLabel.textContent = 'Refreshing…';
+  refreshButton.dataset.state = 'loading';
   refreshButton.setAttribute('aria-busy', 'true');
-  try { await Promise.allSettled([refresh(), positionsView.refresh()]); }
+  const started = Date.now();
+  try {
+    const results = await Promise.allSettled([refresh(), positionsView.refresh()]);
+    // Keep very fast responses from producing a distracting spinner flash.
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, 450 - (Date.now() - started))));
+    const partial = results.some(result => result.status === 'rejected' || result.value === false);
+    refreshButton.dataset.state = partial ? 'partial' : 'done';
+    refreshLabel.textContent = partial ? 'Partial update' : 'Updated';
+    document.querySelector('#refresh-status').textContent = partial ? 'Refresh finished. Some data is unavailable; check the panels.' : 'Rates and positions updated.';
+  }
   finally {
     refreshButton.disabled = false;
-    refreshButton.textContent = 'Refresh';
     refreshButton.setAttribute('aria-busy', 'false');
+    feedbackTimer = setTimeout(() => { refreshLabel.textContent = 'Refresh'; delete refreshButton.dataset.state; }, 2200);
   }
 }
 refreshButton.addEventListener('click', refreshAll);
