@@ -165,7 +165,7 @@ export function mountPositions({ el, logoLabel, platform = [...PLATFORMS] }) {
         const apr = positionRate(r, section, latestRates);
         if (r.collateral) {
           details.append(amountLine('Collateral: ', r.collateralAmount, r.collateral));
-          details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt incl. interest'}: `, r.debt ?? r.loan, r.asset, false, apr));
+          details.append(amountLine(`${r.debt == null ? 'Loan' : 'Debt'}: `, r.debt ?? r.loan, r.asset, false, apr));
           if (r.interest != null) details.append(amountLine('Interest: ', r.interest, r.asset, true));
         } else {
           details.append(amountLine('', r.amount, r.asset, false, apr));
