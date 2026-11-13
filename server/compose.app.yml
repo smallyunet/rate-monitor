@@ -11,11 +11,14 @@ services:
       - path: app.env
         format: raw
     environment:
+      DEVICE_SESSION_FILE: /var/lib/rate-monitor/devices.json
       PUBLIC_ORIGIN: https://w.dark20.xyz
       ALLOWED_ORIGIN: https://w.dark20.xyz
     networks:
       entrypoint:
         aliases: [rate-monitor-app]
+    volumes:
+      - ../device-data:/var/lib/rate-monitor
     read_only: true
     user: node
     cap_drop: [ALL]

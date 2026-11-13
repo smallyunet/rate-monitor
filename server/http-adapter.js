@@ -6,7 +6,7 @@ export function requestHandler(handler, env) {
     try {
       // Fix the origin rather than trusting Host or client-supplied proxy headers.
       const url = new URL(req.url, origin);
-      if (url.origin !== origin.origin || !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      if (url.origin !== origin.origin || !(['GET', 'HEAD', 'OPTIONS'].includes(req.method) || (req.method === 'POST' && ['/private/remember', '/device/logout'].includes(url.pathname)))) {
         res.writeHead(405, { 'Cache-Control': 'no-store' }); res.end(); return;
       }
       const headers = new Headers();

@@ -11,3 +11,4 @@
 !server/
 !server/app.js
 !server/http-adapter.js
+!server/device-sessions.js

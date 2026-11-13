@@ -3,6 +3,7 @@ function decodePart(value) {
   return Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 }
 export async function verifyPositionsIdentity(request, env, fetcher = fetch) {
+  if (new URL(request.url).pathname === '/device/api/positions' && typeof env.verifyDeviceIdentity === 'function') return env.verifyDeviceIdentity(request);
   const issuer = String(env.ACCESS_TEAM_DOMAIN || '').replace(/\/$/, '');
   const audience = env.ACCESS_AUD;
   const owner = String(env.POSITIONS_EMAIL || '').trim().toLowerCase();

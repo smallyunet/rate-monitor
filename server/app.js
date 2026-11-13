@@ -1,7 +1,11 @@
 import http from 'node:http';
 import worker from '../build/worker.js';
 import { requestHandler } from './http-adapter.js';
-const server = http.createServer(requestHandler((request, env) => worker.fetch(request, env), process.env));
+import { createDeviceSessions } from './device-sessions.js';
+const env = { ...process.env };
+const devices = env.DEVICE_SESSION_FILE ? await createDeviceSessions({ file: env.DEVICE_SESSION_FILE, owner: env.POSITIONS_EMAIL?.trim().toLowerCase() }) : null;
+const handle = (request, env) => worker.fetch(request, env);
+const server = http.createServer(requestHandler((request, env) => devices ? devices(request, env, handle) : handle(request, env), env));
 server.requestTimeout = 120000;
 server.headersTimeout = 15000;
 server.maxHeadersCount = 50;

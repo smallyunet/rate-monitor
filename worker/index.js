@@ -153,7 +153,7 @@ export async function collectBinance(env, fetcher = fetch) {
 }
 export async function handle(request, env, fetcher = fetch) {
   const pathname = new URL(request.url).pathname;
-  if (pathname === '/private' || pathname.startsWith('/private/')) {
+  if (pathname === '/private' || pathname.startsWith('/private/') || pathname === '/device/api/positions') {
     return handlePrivate(request, env, fetcher, (path, params) => signedGet(path, params, env, fetcher));
   }
   const site = servePublicSite(request);

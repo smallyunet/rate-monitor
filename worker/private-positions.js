@@ -177,6 +177,6 @@ export async function handlePrivate(request, env, fetcher, binanceGet) {
   if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
   const path = new URL(request.url).pathname;
   if (['/private', '/private/', '/private/*'].includes(path)) return new Response(null, { status: 302, headers: { ...headers, Location: '/#positions' } });
-  if (path === '/private/api/positions') return json(await collectPositions({ ...env, positionsJwt: request.headers.get('Cf-Access-Jwt-Assertion') }, fetcher, binanceGet));
+  if (['/private/api/positions', '/device/api/positions'].includes(path)) return json(await collectPositions({ ...env, positionsJwt: request.headers.get('Cf-Access-Jwt-Assertion') }, fetcher, binanceGet));
   return json({ error: 'not_found' }, 404);
 }

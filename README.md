@@ -30,6 +30,24 @@ RELEASE=<git-sha> docker compose -p rate-monitor-app -f server/compose.app.yml u
 
 以下章节保留交易所字段、历史排障和原 Worker 部署记录；其中旧 Worker 地址、ssh a 中转和手工粘贴部署不再是 Docker 生产流程。
 
+## 记住此设备（Node/Docker）
+
+登录入口 `/private/remember` 继续由 Cloudflare Access 的 `/private/*` 规则保护。通过 Access 登录后，用户可以明确选择 Remember this device，或不记住直接返回看板。项目不修改 Cloudflare JWT，也不延长其有效期。
+
+设备 Cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Strict，不使用 localStorage 保存凭证或仓位。服务端生成 256 位随机凭证，只保存 SHA-256 哈希、邮箱及过期时间。90 天未使用后过期；成功鉴权会续期至最多 90 天，一年后必须重新通过 Access 登录。设备会话在容器重建后保留；修改允许邮箱会使旧邮箱的设备会话失效。
+
+`/device/api/positions` 位于 Cloudflare `/private/*` 规则之外，由项目独立验证设备 Cookie，复用原仓位查询；没有设备会话的浏览器回退到受 Access 保护的 `/private/api/positions`。不要把 `/device/*` 加入必须先登录的 Access 规则，否则无法在 Access 会话过期后保持设备登录。不得把 `/private/remember` 配置为 Bypass。退出先 POST `/device/logout` 撤销当前设备并清除 Cookie，再退出 Cloudflare；两个 POST 路由都严格验证同源 Origin。
+
+启用前，在服务器源码根目录创建唯一实例使用的持久化目录（Node 镜像用户 UID/GID 1000）：
+
+```sh
+install -d -m 700 -o 1000 -g 1000 device-data
+```
+
+Compose 将此目录挂载至 `/var/lib/rate-monitor`，并设置 `DEVICE_SESSION_FILE=/var/lib/rate-monitor/devices.json`。目录不得进入镜像或 Git；文件仅含设备会话元数据，不含交易所密钥或账户仓位。存储损坏或不可写时拒绝设备操作，不把失败当作成功。当前文件存储仅支持单个应用进程，不能让多个副本共享写入。
+
+撤销所有已记住设备：停止应用、删除持久化目录中的 `devices.json`（如存在也删除 `devices.json.tmp`），再启动应用。未设置 `DEVICE_SESSION_FILE` 时不提供设备注册和撤销；此功能只在 Node 服务中启用，不在旧 Cloudflare Worker 中启用。
+
 ## 工作方式
 
 Cloudflare Worker 同源托管网页与 API → Binance、Bitget、OKX 市场接口。

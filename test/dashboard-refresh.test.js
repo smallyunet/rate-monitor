@@ -91,7 +91,7 @@ test('dashboard refresh retains data until completion, filters every panel and c
   const sections = amount => ['Binance', 'Bitget', 'OKX'].map(platform => ({ platform, product: 'Flexible Earn', status: 'ok',
     fetchedAt: new Date().toISOString(), rows: [{ asset: 'USDC', amount: String(platform === 'OKX' ? amount : 999), positionRate: .05 }] }));
   const resolveRates = data => pending.splice(pending.findIndex(p => p.url === '/api/rates'), 1)[0].resolve(Response.json({ products: data, requestedAt: new Date().toISOString() }));
-  const resolvePositions = data => pending.splice(pending.findIndex(p => p.url === '/private/api/positions'), 1)[0].resolve(Response.json({ sections: data }));
+  const resolvePositions = data => pending.splice(pending.findIndex(p => ['/device/api/positions', '/private/api/positions'].includes(p.url)), 1)[0].resolve(Response.json({ sections: data }));
   await import(`../web/app.js?dashboard-test=${Date.now()}`);
   const button = document.querySelector('#refresh');
   assert.deepEqual(options.filter(n => n.checked).map(n => n.value), ['OKX']);
@@ -168,7 +168,7 @@ test('dashboard refresh retains data until completion, filters every panel and c
   assert.match(document.querySelector('#loan-rows tr[data-platform="Bitget"]').textContent, /6\.00%/);
   button.click();
   pending.splice(pending.findIndex(p => p.url === '/api/rates'), 1)[0].reject(Error('offline'));
-  pending.splice(pending.findIndex(p => p.url === '/private/api/positions'), 1)[0].reject(Error('offline'));
+  pending.splice(pending.findIndex(p => ['/device/api/positions', '/private/api/positions'].includes(p.url)), 1)[0].reject(Error('offline'));
   await waitFor(() => !button.disabled);
   assert.equal(button.dataset.state, 'partial');
   assert.doesNotMatch(document.querySelector('#loan-rows').textContent, /[56]\.00%/);
@@ -179,6 +179,8 @@ test('dashboard refresh retains data until completion, filters every panel and c
   button.click(); resolveRates(products(.03)); resolvePositions(sections(100));
   await waitFor(() => !button.disabled);
   button.click(); resolveRates(products(.03));
+  pending.splice(pending.findIndex(p => ['/device/api/positions', '/private/api/positions'].includes(p.url)), 1)[0].resolve(new Response('', { status: 401 }));
+  await waitFor(() => pending.some(p => p.url === '/private/api/positions'));
   pending.splice(pending.findIndex(p => p.url === '/private/api/positions'), 1)[0].resolve(new Response('', { status: 401 }));
   await waitFor(() => !button.disabled);
   assert.equal(document.querySelector('#portfolio-summary').hidden, true, 'expired login removes account data');

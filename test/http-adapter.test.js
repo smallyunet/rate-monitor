@@ -26,3 +26,15 @@ test('adapter supports HEAD, release health header and sanitized failures',async
   result=await run(()=>{throw new Error('secret');});
   assert.equal(result.status,500);assert.equal(result.body,'{"error":"service_error"}');
 });
+
+test('adapter permits only the two explicit session POST routes', async () => {
+  for (const path of ['/private/remember', '/device/logout']) {
+    const result = await run(request => {
+      assert.equal(request.method, 'POST');
+      assert.equal(request.headers.get('origin'), 'https://w.dark20.xyz');
+      return new Response(null, { status: 204 });
+    }, path, 'POST', { origin: 'https://w.dark20.xyz' });
+    assert.equal(result.status, 204);
+  }
+  assert.equal((await run(() => assert.fail('must not run'), '/device/api/positions', 'POST')).status, 405);
+});

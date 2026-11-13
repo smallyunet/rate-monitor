@@ -240,7 +240,8 @@ export function mountPositions({ el, logoLabel, platform = [...PLATFORMS] }) {
     refreshing = true;
     document.querySelector('#positions').setAttribute('aria-busy', 'true'); setStatus(latestSections ? 'Refreshing…' : 'Loading…');
     try {
-      const response = await fetch('/private/api/positions', { cache: 'no-store', redirect: 'manual', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]) });
+      let response = await fetch('/device/api/positions', { cache: 'no-store', redirect: 'manual', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]) });
+      if (response.status === 401 || response.status === 503) response = await fetch('/private/api/positions', { cache: 'no-store', redirect: 'manual', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]) });
       if (current !== generation) return;
       if (response.type === 'opaqueredirect' || [0, 401, 403].includes(response.status)) { clear(); setStatus(''); return; }
       if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error();
@@ -265,6 +266,8 @@ export function mountPositions({ el, logoLabel, platform = [...PLATFORMS] }) {
   signOut.addEventListener('click', async () => {
     signingOut = true; ++generation; controller?.abort(); clear(); setStatus('Signing out…'); signIn.hidden = true;
     try {
+      const revoked = await fetch('/device/logout', { method: 'POST', cache: 'no-store' });
+      if (!revoked.ok) throw new Error();
       const response = await fetch('/cdn-cgi/access/logout', { cache: 'no-store', redirect: 'manual' });
       if (response.status >= 400) throw new Error();
       setStatus('');
