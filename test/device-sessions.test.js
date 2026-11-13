@@ -25,6 +25,14 @@ test('remembered devices survive restart, renew, expire, and are revoked server-
     };
     assert.equal((await middleware(request('/private/remember', 'POST', { origin: env.PUBLIC_ORIGIN }), env, handler)).status, 401);
     assert.equal((await middleware(request('/private/remember', 'POST', { origin: 'https://evil.example', 'cf-access-jwt-assertion': 'verified-by-test' }), env, handler)).status, 403);
+    const landing = await middleware(request('/private/remember', 'GET', { 'cf-access-jwt-assertion': 'verified-by-test' }), env, handler);
+    assert.equal(landing.status, 200);
+    // no-referrer makes navigation form POSTs send Origin: null (Fetch standard).
+    assert.equal(landing.headers.get('referrer-policy'), 'same-origin');
+    assert.match(await landing.text(), /<form method="post">/);
+    for (const origin of ['null', 'https://evil.example']) {
+      assert.equal((await middleware(request('/private/remember', 'POST', { origin, 'cf-access-jwt-assertion': 'verified-by-test' }), env, handler)).status, 403);
+    }
     const enroll = async () => {
       const response = await middleware(request('/private/remember', 'POST', { origin: env.PUBLIC_ORIGIN, 'cf-access-jwt-assertion': 'verified-by-test' }), env, handler);
       assert.equal(response.status, 303);

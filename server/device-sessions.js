@@ -36,7 +36,7 @@ export async function createDeviceSessions({ file, owner, now = Date.now, verify
   return async (request, env, handler) => {
     const path = new URL(request.url).pathname;
     if (!['/private/remember', '/device/api/positions', '/device/logout'].includes(path)) return handler(request, env);
-    const headers = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff',
+    const headers = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" };
     const json = (error, status) => Response.json({ error }, { status, headers });
     if (request.method === 'POST' && request.headers.get('origin') !== env.PUBLIC_ORIGIN) return json('origin_not_allowed', 403);
